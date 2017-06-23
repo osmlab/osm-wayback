@@ -1,17 +1,23 @@
-#include <cstdlib>  // for std::exit
-#include <cstring>  // for std::strncmp
-#include <iostream> // for std::cout, std::cerr
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 #include <sstream>
 
-// Allow any format of input files (XML, PBF, ...)
 #include <osmium/io/any_input.hpp>
-#include  <osmium/osm/types.hpp>
+#include <osmium/osm/types.hpp>
 
-// We want to use the handler interface
 #include <osmium/handler.hpp>
-
-// For osmium::apply()
 #include <osmium/visitor.hpp>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+#define RAPIDJSON_HAS_STDSTRING 1
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
+#include "rapidjson/document.h"
+#pragma GCC diagnostic pop
+
+#include <osmium/geom/rapid_geojson.hpp>
 
 #include "rocksdb/db.h"
 
@@ -45,9 +51,16 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " OSMFILE\n";
-        std::exit(1);
+	for (std::string line; std::getline(std::cin, line);) {
+        rapidjson::Document doc;
+        if(doc.Parse<0>(line.c_str()).HasParseError()) {
+            std::cout << "ERROR" << std::endl;
+        } else {
+            rapidjson::StringBuffer buffer;
+            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+            doc.Accept(writer);
+            std::cout << "json coming" << buffer.GetString() << std::endl;
+        }
     }
 
     rocksdb::DB* db;
