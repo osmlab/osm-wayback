@@ -34,7 +34,6 @@ int main(int argc, char* argv[]) {
                 const auto version = doc["properties"]["@version"].GetInt();
                 const std::string type = doc["properties"]["@type"].GetString();
                 rapidjson::Value object_history(rapidjson::kArrayType);
-                rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
 
                 for(int v = 1; v < version; v++) {
                     const auto lookup = type + "!" + std::to_string(osm_id) + "!" + std::to_string(v);
@@ -42,26 +41,22 @@ int main(int argc, char* argv[]) {
                     rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &json);
                     if (s.ok()) {
                         rapidjson::Document stored_doc;
-                        stored_doc.Parse<0>(json.c_str());
 
-                        //rapidjson::Value object_version(rapidjson::kObjectType);
-                        //object_version.AddMember("version", v, allocator);
-                        //object_version.AddMember("tags", stored_doc.GetObject(), allocator);
-                        // object_version["user"] = version;
-                        // object_version["uid"] = version;
-                        // object_version["changeset"] = version;
-                        // object_version["created_at"] = version;
+                        if(stored_doc.Parse<0>(json.c_str()).HasParseError()) {
+                          continue;
+                        }
 
-                        object_history.PushBack(stored_doc, allocator);
+                        object_history.PushBack(stored_doc, doc.GetAllocator());
                     } else {
                         continue;
                     }
                 }
 
-                doc["properties"].AddMember("@object_history", object_history, allocator);
+                doc["properties"].AddMember("@object_history", object_history, doc.GetAllocator());
 
                 rapidjson::StringBuffer buffer;
                 rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                // Causes segfault sometimes
                 doc.Accept(writer);
 
                 std::cout << buffer.GetString() << std::endl;
