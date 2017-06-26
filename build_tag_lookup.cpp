@@ -43,11 +43,14 @@ class TagStoreHandler : public osmium::handler::Handler {
     void store_tags(const std::string lookup, const osmium::OSMObject& object) {
         const osmium::TagList& tags = object.tags();
         std::ostringstream os;
+        int count = 0;
         for (const osmium::Tag& tag : tags) {
             os << "\"" << tag.key() << "\":\"" << tag.value() << "\",";
+            count += 1;
         }
         const std::string s = os.str();
         rocksdb::Status stat = m_db->Put(rocksdb::WriteOptions(), lookup, s);
+        std::cout << lookup << " " << count << std::endl;
     }
 
 public:
@@ -56,12 +59,19 @@ public:
     // Nodes can be tagged amenity=pub.
     void node(const osmium::Node& node) {
         const auto lookup = "node!" + std::to_string(node.id()) + "!" + std::to_string(node.version());
+        // const auto lookup = "node!" + std::to_string(node.id());
+        if (node.tags().empty()) {
+            return;
+        }
         store_tags(lookup, node);
     }
 
     // Ways can be tagged amenity=pub, too (typically buildings).
     void way(const osmium::Way& way) {
         const auto lookup = "way!" + std::to_string(way.id()) + "!" + std::to_string(way.version());
+        if (way.tags().empty()) {
+            return;
+        }
         store_tags(lookup, way);
     }
 
