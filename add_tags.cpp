@@ -30,24 +30,38 @@ int main(int argc, char* argv[]) {
             if(!doc["properties"]["@id"].IsInt() || !doc["properties"]["@version"].IsInt() || !doc["properties"]["@type"].IsString()) continue;
 
             try {
-                const auto osmId = doc["properties"]["@id"].GetInt();
+                const auto osm_id = doc["properties"]["@id"].GetInt();
                 const auto version = doc["properties"]["@version"].GetInt();
                 const std::string type = doc["properties"]["@type"].GetString();
-                const auto lookup = type + "!" + std::to_string(osmId) + "!" + std::to_string(version);
-                // const auto lookup = type + "!" + std::to_string(osmId);
-                std::string value;
-                rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &value);
-                if (s.ok()) {
-                    std::cout << lookup << " " << value << std::endl;
-                } else {
-                    std::cout << "NOT FOUND " << lookup << std::endl;
-                    continue;
+                rapidjson::Value object_history(rapidjson::kArrayType);
+                rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
+
+                for(int v = 1; v < version; v++) {
+                    const auto lookup = type + "!" + std::to_string(osm_id) + "!" + std::to_string(v);
+                    std::string value;
+                    rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &value);
+                    if (s.ok()) {
+                        rapidjson::Value object_version(rapidjson::kObjectType);
+                        object_version.AddMember("version", v, allocator);
+                        object_version.AddMember("tags", value, allocator);
+                        // object_version["user"] = version;
+                        // object_version["uid"] = version;
+                        // object_version["changeset"] = version;
+                        // object_version["created_at"] = version;
+
+                        object_history.PushBack(object_version, allocator);
+                    } else {
+                        continue;
+                    }
                 }
+
+                doc["properties"].AddMember("@object_history", object_history, allocator);
+
                 rapidjson::StringBuffer buffer;
                 rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
                 doc.Accept(writer);
 
-                // std::cout << "json coming" << buffer.GetString() << std::endl;
+                std::cout << buffer.GetString() << std::endl;
             } catch (const std::exception& ex) {
                 std::cerr<< ex.what() << std::endl;
                 continue;
