@@ -38,18 +38,21 @@ int main(int argc, char* argv[]) {
 
                 for(int v = 1; v < version; v++) {
                     const auto lookup = type + "!" + std::to_string(osm_id) + "!" + std::to_string(v);
-                    std::string value;
-                    rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &value);
+                    std::string json;
+                    rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &json);
                     if (s.ok()) {
-                        rapidjson::Value object_version(rapidjson::kObjectType);
-                        object_version.AddMember("version", v, allocator);
-                        object_version.AddMember("tags", value, allocator);
+                        rapidjson::Document stored_doc;
+                        stored_doc.Parse<0>(json.c_str());
+
+                        //rapidjson::Value object_version(rapidjson::kObjectType);
+                        //object_version.AddMember("version", v, allocator);
+                        //object_version.AddMember("tags", stored_doc.GetObject(), allocator);
                         // object_version["user"] = version;
                         // object_version["uid"] = version;
                         // object_version["changeset"] = version;
                         // object_version["created_at"] = version;
 
-                        object_history.PushBack(object_version, allocator);
+                        object_history.PushBack(stored_doc, allocator);
                     } else {
                         continue;
                     }

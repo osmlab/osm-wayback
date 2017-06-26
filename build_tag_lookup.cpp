@@ -23,6 +23,14 @@
 #include <iostream> // for std::cout, std::cerr
 #include <sstream>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+#define RAPIDJSON_HAS_STDSTRING 1
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
+#include "rapidjson/document.h"
+#pragma GCC diagnostic pop
+
 // Allow any format of input files (XML, PBF, ...)
 #include <osmium/io/any_input.hpp>
 #include  <osmium/osm/types.hpp>
@@ -39,17 +47,32 @@
 class TagStoreHandler : public osmium::handler::Handler {
     rocksdb::DB* m_db;
 
-    //TODO: Yes this is stupid
+    //TODO: Yes this is stupid and slow
     void store_tags(const std::string lookup, const osmium::OSMObject& object) {
+        rapidjson::Document doc;
+        rapidjson::Document::AllocatorType& a = doc.GetAllocator();
+        doc.SetObject();
+
+        doc.AddMember("timestamp", object.timestamp().to_iso(), a);
+        doc.AddMember("deleted", object.deleted(), a);
+        doc.AddMember("user", std::string{object.user()}, a);
+        doc.AddMember("uid", object.uid(), a);
+        doc.AddMember("changeset", object.changeset(), a);
+
         const osmium::TagList& tags = object.tags();
-        std::ostringstream os;
         int count = 0;
         for (const osmium::Tag& tag : tags) {
-            os << "\"" << tag.key() << "\":\"" << tag.value() << "\",";
+            rapidjson::Value key(rapidjson::StringRef(tag.key()));
+            rapidjson::Value value(rapidjson::StringRef(tag.value()));
+            doc.AddMember(key, value, a);
             count += 1;
         }
-        const std::string s = os.str();
-        rocksdb::Status stat = m_db->Put(rocksdb::WriteOptions(), lookup, s);
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        doc.Accept(writer);
+
+        rocksdb::Status stat = m_db->Put(rocksdb::WriteOptions(), lookup, buffer.GetString());
         std::cout << lookup << " " << count << std::endl;
     }
 
