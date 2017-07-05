@@ -20,28 +20,27 @@ int main(int argc, char* argv[]) {
     rocksdb::Options options;
     options.create_if_missing = true;
     rocksdb::Status status = rocksdb::DB::Open(options, "/tmp/testdb", &db);
-
+    rapidjson::Document doc;
     for (std::string line; std::getline(std::cin, line);) {
-        rapidjson::Document doc;
         if(doc.Parse<0>(line.c_str()).HasParseError()) {
             std::cout << "ERROR" << std::endl;
         } else {
             if(!doc.HasMember("properties")) continue;
             if(!doc["properties"]["@id"].IsInt() || !doc["properties"]["@version"].IsInt() || !doc["properties"]["@type"].IsString()) continue;
 
+            const auto version = doc["properties"]["@version"].GetInt();
+            const auto osm_id = doc["properties"]["@id"].GetInt();
+            const std::string type = doc["properties"]["@type"].GetString();
+
             try {
-                const auto osm_id = doc["properties"]["@id"].GetInt();
-                const auto version = doc["properties"]["@version"].GetInt();
-                const std::string type = doc["properties"]["@type"].GetString();
                 rapidjson::Value object_history(rapidjson::kArrayType);
+                rapidjson::Document stored_doc;
 
                 for(int v = 1; v < version; v++) {
                     const auto lookup = type + "!" + std::to_string(osm_id) + "!" + std::to_string(v);
                     std::string json;
                     rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &json);
                     if (s.ok()) {
-                        rapidjson::Document stored_doc;
-
                         if(stored_doc.Parse<0>(json.c_str()).HasParseError()) {
                           continue;
                         }
@@ -54,11 +53,10 @@ int main(int argc, char* argv[]) {
 
                 doc["properties"].AddMember("@object_history", object_history, doc.GetAllocator());
 
+
                 rapidjson::StringBuffer buffer;
                 rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-                // Causes segfault sometimes
                 doc.Accept(writer);
-
                 std::cout << buffer.GetString() << std::endl;
             } catch (const std::exception& ex) {
                 std::cerr<< ex.what() << std::endl;
