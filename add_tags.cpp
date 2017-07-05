@@ -1,7 +1,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <unistd.h>
 #include <sstream>
 
 #pragma GCC diagnostic push
@@ -13,24 +12,20 @@
 #pragma GCC diagnostic pop
 
 #include <osmium/geom/rapid_geojson.hpp>
-
 #include "rocksdb/db.h"
 
 int main(int argc, char* argv[]) {
-    std::string index_filename;
-    const int remaining_args = argc - optind;
-    if (remaining_args == 1) {
-        index_filename = argv[optind];
-        std::cerr << "Using OSM history from index'" << index_filename << "'..." << std::endl;
-    } else {
-        std::cerr << "Usage: " << argv[0] << " [OPTIONS] INDEX_DIR" << std::endl;
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " INDEX_DIR" << std::endl;
         std::exit(1);
     }
+
+    std::string index_dir = argv[1];
 
     rocksdb::DB* db;
     rocksdb::Options options;
     options.create_if_missing = true;
-    rocksdb::Status status = rocksdb::DB::Open(options, index_filename, &db);
+    rocksdb::Status status = rocksdb::DB::Open(options, index_dir, &db);
 
     rapidjson::Document doc;
     for (std::string line; std::getline(std::cin, line);) {
