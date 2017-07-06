@@ -19,6 +19,10 @@ include_directories(SYSTEM ${OSMIUM_INCLUDE_DIRS})
 find_package(RocksDB REQUIRED)
 include_directories(SYSTEM ${ROCKSDB_INCLUDE_DIRS})
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
+
 include(common)
 
 #----------------------------------------------------------------------
@@ -30,6 +34,9 @@ add_executable(add_tags add_tags.cpp)
 
 target_link_libraries(build_tag_lookup ${Boost_LIBRARIES} ${OSMIUM_LIBRARIES} ${ROCKSDB_LIBRARIES})
 target_link_libraries(add_tags ${Boost_LIBRARIES} ${OSMIUM_LIBRARIES} ${ROCKSDB_LIBRARIES})
+
+target_link_libraries(add_tags Threads::Threads)
+
 
 #-----------------------------------------------------------------------------
 #
