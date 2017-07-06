@@ -18,8 +18,6 @@
 #include <rapidjson/stringbuffer.h>
 #include "rapidjson/document.h"
 #pragma GCC diagnostic pop
-    
-#include <vector>
 
 // Allow any format of input files (XML, PBF, ...)
 #include <osmium/io/any_input.hpp>
@@ -42,35 +40,32 @@ class TagStoreHandler : public osmium::handler::Handler {
         rapidjson::Document doc;
 
         doc.SetObject();
-        
-        rapidjson::Value tag_keys(rapidjson::kArrayType);
-        rapidjson::Value tag_values(rapidjson::kArrayType);
-        
+                
         rapidjson::Document::AllocatorType& a = doc.GetAllocator();
 
-        doc.AddMember("timestamp", object.timestamp().to_iso(), a);
-        doc.AddMember("deleted", object.deleted(), a);
-        doc.AddMember("visible", object.visible(), a);
-        doc.AddMember("user", std::string{object.user()}, a);
-        doc.AddMember("uid", object.uid(), a);
-        doc.AddMember("changeset", object.changeset(), a);
+        doc.AddMember("@timestamp", object.timestamp().to_iso(), a); //ISO is helpful for debugging, but we should leave it
+        doc.AddMember("@deleted", object.deleted(), a);
+        doc.AddMember("@visible", object.visible(), a);
+        doc.AddMember("@user", std::string{object.user()}, a);
+        doc.AddMember("@uid", object.uid(), a);
+        doc.AddMember("@changeset", object.changeset(), a);
+        doc.AddMember("@version", object.version(), a);
         
         //Ignore trying to store geometries, but if we could scale that, it'd be awesome.
         
         const osmium::TagList& tags = object.tags();
+        
+        rapidjson::Value object_tags(rapidjson::kObjectType);
         
         for (const osmium::Tag& tag : tags) {
             
             rapidjson::Value key(rapidjson::StringRef(tag.key()));
             rapidjson::Value value(rapidjson::StringRef(tag.value()));
 
-            tag_keys.PushBack(key, a);
-            tag_values.PushBack(value, a);           
-            
+            object_tags.AddMember(key, value, a);
         }
         
-        doc.AddMember("tag_keys", tag_keys, a);
-        doc.AddMember("tag_values", tag_values, a);
+        doc.AddMember("@tags", object_tags, a);
         
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);

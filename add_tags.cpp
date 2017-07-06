@@ -64,29 +64,68 @@ int main(int argc, char* argv[]) {
                     
                     if (idx==0){
                         rapidjson::Value new_tags(rapidjson::kObjectType);
-
-                        for(rapidjson::SizeType jdx=0; jdx<object_history[idx]["tag_keys"].Size(); jdx++){
-                            new_tags.AddMember(hist_obj["tag_keys"][jdx], hist_obj["tag_values"][jdx], doc.GetAllocator());
-                        }
-                        hist_obj.AddMember("new_tags", new_tags, doc.GetAllocator());
+                        hist_obj.AddMember("@new_tags", hist_obj["@tags"], doc.GetAllocator());
                     }
                     else{
-                        //For the keys in THIS version, compare to previous version
-                        for(rapidjson::SizeType jdx=0; jdx<hist_obj["tag_keys"].Size(); jdx++){
-                            //Search for this key in the previous version.
-                            //object_history[idx-1]["tag_keys"]//.HasMember(object_history[idx]["tag_keys"][jdx]);
-                            
-                            //What is the result of (find)?
-                            //std::cout << wtf << std::endl;
+                        const rapidjson::Value& tags = hist_obj["@tags"];
                         
+                        rapidjson::Value new_tags(rapidjson::kObjectType);
+                        rapidjson::Value modified_tags(rapidjson::kObjectType);
+                        rapidjson::Value deleted_tags(rapidjson::kObjectType);
+                        
+                        for (rapidjson::Value::ConstMemberIterator it= tags.MemberBegin(); it != tags.MemberEnd(); it++){
+
+                            rapidjson::Value tag_key(rapidjson::StringRef(it->name.GetString()));
+                            rapidjson::Value tag_val(rapidjson::StringRef(it->value.GetString()));
+                            
+                            if (object_history[idx-1]["@tags"].HasMember(tag_key)==true) {
+                            //This key exists in the previous tag list                            
+                                
+                                //Check if the values are the same
+                                if (object_history[idx-1]["@tags"][tag_key] == tag_val ){
+                                    //The values are the same.
+                                    // Don't do anything
+                                }else{
+                                    //There was a change, make a @modified_tags object
+                                    //[OLD, NEW]
+
+                                    std::string s = object_history[idx-1]["@tags"][tag_key].GetString();
+                                    
+                                    rapidjson::Value prev_val;
+                                    prev_val.SetString(rapidjson::StringRef(s));
+                                    
+                                    rapidjson::Value modified_tag(rapidjson::kArrayType);
+                                    modified_tag.PushBack(prev_val, doc.GetAllocator());
+                                    modified_tag.PushBack(tag_val, doc.GetAllocator());
+                                    
+                                    modified_tags.AddMember(tag_key, modified_tag, doc.GetAllocator());
+                                }
+                                
+                            }else{
+                                //This is a new tag
+                                new_tags.AddMember(tag_key, tag_val, doc.GetAllocator());
+                            }
                         }
                         
-                        //Compare keys to the previous entry   
+                        //Only add these objects to the history object if they have values.
+                        if (new_tags.ObjectEmpty() == false){
+                            hist_obj.AddMember("@new_tags", new_tags, doc.GetAllocator());
+                        }
+                        if (modified_tags.ObjectEmpty() == false){
+                            hist_obj.AddMember("@modified_tags", modified_tags, doc.GetAllocator());
+                        }
+                        if (deleted_tags.ObjectEmpty() == false){
+                            //Now figure out how to handle deleted tags?
+                            hist_obj.AddMember("@deleted_tags",  new_tags, doc.GetAllocator());
+                        }
                     }
+
                 }
+                
+                //TODO: Remove all "@tags" objects from each hist_obj
 
+                //Last, add history to original object
                 doc["properties"].AddMember("@history", object_history, doc.GetAllocator());
-
 
                 rapidjson::StringBuffer buffer;
                 rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
