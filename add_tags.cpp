@@ -50,14 +50,42 @@ int main(int argc, char* argv[]) {
                         if(stored_doc.Parse<0>(json.c_str()).HasParseError()) {
                           continue;
                         }
-
+                        
                         object_history.PushBack(stored_doc, doc.GetAllocator());
                     } else {
                         continue;
                     }
                 }
+                
+                //Calculate diffs
+                for(rapidjson::SizeType idx=0; idx<object_history.Size(); idx++){
+                    
+                    rapidjson::Value& hist_obj = object_history[idx];
+                    
+                    if (idx==0){
+                        rapidjson::Value new_tags(rapidjson::kObjectType);
 
-                doc["properties"].AddMember("@object_history", object_history, doc.GetAllocator());
+                        for(rapidjson::SizeType jdx=0; jdx<object_history[idx]["tag_keys"].Size(); jdx++){
+                            new_tags.AddMember(hist_obj["tag_keys"][jdx], hist_obj["tag_values"][jdx], doc.GetAllocator());
+                        }
+                        hist_obj.AddMember("new_tags", new_tags, doc.GetAllocator());
+                    }
+                    else{
+                        //For the keys in THIS version, compare to previous version
+                        for(rapidjson::SizeType jdx=0; jdx<hist_obj["tag_keys"].Size(); jdx++){
+                            //Search for this key in the previous version.
+                            //object_history[idx-1]["tag_keys"]//.HasMember(object_history[idx]["tag_keys"][jdx]);
+                            
+                            //What is the result of (find)?
+                            //std::cout << wtf << std::endl;
+                        
+                        }
+                        
+                        //Compare keys to the previous entry   
+                    }
+                }
+
+                doc["properties"].AddMember("@history", object_history, doc.GetAllocator());
 
 
                 rapidjson::StringBuffer buffer;
