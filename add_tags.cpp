@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
                 rapidjson::Value object_history(rapidjson::kArrayType);
                 rapidjson::Document stored_doc;
 
-                for(int v = 1; v < version; v++) {
+                for(int v = 1; v <= version; v++) {
                     const auto lookup = type + "!" + std::to_string(osm_id) + "!" + std::to_string(v);
                     std::string json;
                     rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &json);
