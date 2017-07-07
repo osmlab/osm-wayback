@@ -13,6 +13,9 @@
 
 #include <osmium/geom/rapid_geojson.hpp>
 #include "rocksdb/db.h"
+#include <rocksdb/table.h>
+#include <rocksdb/filter_policy.h>
+#include "rocksdb/cache.h"
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -22,8 +25,15 @@ int main(int argc, char* argv[]) {
 
     std::string index_dir = argv[1];
 
-    rocksdb::DB* db;
     rocksdb::Options options;
+    options.create_if_missing = false;
+    options.allow_mmap_writes = true;
+
+    rocksdb::BlockBasedTableOptions table_opts;
+    table_opts.filter_policy = std::shared_ptr<const rocksdb::FilterPolicy>(rocksdb::NewBloomFilterPolicy(10));
+    table_opts.block_cache = rocksdb::NewLRUCache(4 * 1024 * 1024 * 1024, 10);
+    options.table_factory.reset(NewBlockBasedTableFactory(table_opts));
+    rocksdb::DB* db;
     rocksdb::Status status = rocksdb::DB::Open(options, index_dir, &db);
 
     rapidjson::Document doc;
@@ -43,7 +53,7 @@ int main(int argc, char* argv[]) {
                 rapidjson::Document stored_doc;
 
                 for(int v = 1; v < version; v++) {
-                    const auto lookup = type + "!" + std::to_string(osm_id) + "!" + std::to_string(v);
+                    const auto lookup = std::to_string(osm_id) + "!" + std::to_string(v) + "!" + type;
                     std::string json;
                     rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &json);
                     if (s.ok()) {
@@ -71,4 +81,6 @@ int main(int argc, char* argv[]) {
 
         }
     }
+
+    delete db;
 }
