@@ -17,6 +17,10 @@
 #include <rocksdb/filter_policy.h>
 #include "rocksdb/cache.h"
 
+long int make_lookup(int osm_id, int type, int version) {
+    return osm_id * 10000 + type * 1000 + version;
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " INDEX_DIR" << std::endl;
@@ -52,8 +56,13 @@ int main(int argc, char* argv[]) {
                 rapidjson::Value object_history(rapidjson::kArrayType);
                 rapidjson::Document stored_doc;
 
-                for(int v = 1; v <= version; v++) {
-                    const auto lookup = std::to_string(osm_id) + "!" + std::to_string(v) + "!" + type;
+                int osmType = 1;
+                if(type == "node") osmType = 1;
+                if(type == "way") osmType = 2;
+                if(type == "relation") osmType = 3;
+
+                for(int v = 1; v < version; v++) {
+                    const auto lookup = std::to_string(make_lookup(osm_id, osmType, v));
                     std::string json;
                     rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &json);
                     if (s.ok()) {
