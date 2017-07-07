@@ -1,0 +1,49 @@
+language: cpp
+dist: trusty
+sudo: false
+matrix:
+    include:
+        - os: linux
+          compiler: clang
+          env: BUILD_TYPE=Dev
+        - os: linux
+          compiler: clang
+          env: BUILD_TYPE=Release
+        - os: linux
+          compiler: gcc
+          env: BUILD_TYPE=Dev
+        - os: linux
+          compiler: gcc
+          env: BUILD_TYPE=Release
+        - os: osx
+          compiler: clang
+          env: BUILD_TYPE=Dev
+        - os: osx
+          compiler: clang
+          env: BUILD_TYPE=Release
+
+addons:
+    apt:
+        sources:
+            - ubuntu-toolchain-r-test
+            - boost-latest
+        packages:
+            - g++-4.8
+            - gcc-4.8
+            - libboost1.55-dev
+            - zlib1g-dev
+            - libbz2-dev
+            - libsnappy-dev
+            - curl
+            - libgflags-dev
+
+before_install:
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install rocksdb; fi
+install:
+    - git clone --quiet --depth 1 https://github.com/osmcode/libosmium.git ../libosmium
+    - git clone --quiet --depth 1 https://github.com/facebook/rocksdb.git ../rocksdb
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then (cd ../rocksdb && mkdir build && cd build && cmake .. && make -j4 rocksdb); fi
+script:
+    - scripts/travis_script.sh
+

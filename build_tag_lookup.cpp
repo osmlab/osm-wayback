@@ -30,6 +30,8 @@
 #include <osmium/visitor.hpp>
 
 #include "rocksdb/db.h"
+#include <rocksdb/table.h>
+#include <rocksdb/filter_policy.h>
 
 
 class TagStoreHandler : public osmium::handler::Handler {
@@ -81,7 +83,7 @@ public:
     int rel_count = 0;
     void node(const osmium::Node& node) {
         node_count += 1;
-            const auto lookup = "node!" + std::to_string(node.id()) + "!" + std::to_string(node.version());
+        const auto lookup = std::to_string(node.id()) + "!" + std::to_string(node.version()) + "!node";
             // const auto lookup = "node!" + std::to_string(node.id());
             if (node.tags().empty()) {
                 return;
@@ -96,7 +98,7 @@ public:
     
     void way(const osmium::Way& way) {
         way_count += 1;
-        const auto lookup = "way!" + std::to_string(way.id()) + "!" + std::to_string(way.version());
+        const auto lookup = std::to_string(way.id()) + "!" + std::to_string(way.version()) + "!way";
         if (way.tags().empty()) {
             return;
         }
@@ -112,7 +114,7 @@ public:
 
     void relation(const osmium::Relation& relation) {
         rel_count += 1;
-        const auto lookup = "relation!" + std::to_string(relation.id()) + "!" + std::to_string(relation.version());
+        const auto lookup = std::to_string(relation.id()) + "!" + std::to_string(relation.version()) + "!relation";
         if (relation.tags().empty()) {
             return;
         }
@@ -137,8 +139,13 @@ int main(int argc, char* argv[]) {
     rocksdb::DB* db;
     rocksdb::Options options;
     options.create_if_missing = true;
-    rocksdb::Status status = rocksdb::DB::Open(options, index_dir, &db);
+    options.allow_mmap_writes = true;
 
+    rocksdb::BlockBasedTableOptions table_opts;
+    table_opts.filter_policy = std::shared_ptr<const rocksdb::FilterPolicy>(rocksdb::NewBloomFilterPolicy(10));
+    options.table_factory.reset(NewBlockBasedTableFactory(table_opts));
+
+    rocksdb::Status status = rocksdb::DB::Open(options, index_dir, &db);
     TagStoreHandler tag_handler{db};
     osmium::io::Reader reader{osm_filename, osmium::osm_entity_bits::node | osmium::osm_entity_bits::way | osmium::osm_entity_bits::relation};
     osmium::apply(reader, tag_handler);
