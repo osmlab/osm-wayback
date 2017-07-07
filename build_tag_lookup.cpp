@@ -45,12 +45,15 @@
 #include <rocksdb/table.h>
 #include <rocksdb/filter_policy.h>
 
+long int make_lookup(int osm_id, int type, int version) {
+    return osm_id * 10000 + type * 1000 + version;
+}
 
 class TagStoreHandler : public osmium::handler::Handler {
     rocksdb::DB* m_db;
 
     //TODO: Yes this is stupid and slow
-    void store_tags(const std::string lookup, const osmium::OSMObject& object) {
+    void store_tags(const long int lookup, const osmium::OSMObject& object) {
         rapidjson::Document doc;
         rapidjson::Document::AllocatorType& a = doc.GetAllocator();
         doc.SetObject();
@@ -74,7 +77,7 @@ class TagStoreHandler : public osmium::handler::Handler {
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
         doc.Accept(writer);
 
-        rocksdb::Status stat = m_db->Put(rocksdb::WriteOptions(), lookup, buffer.GetString());
+        rocksdb::Status stat = m_db->Put(rocksdb::WriteOptions(), std::to_string(lookup), buffer.GetString());
         std::cout << lookup << " " << count << std::endl;
     }
 
@@ -83,8 +86,7 @@ public:
 
     // Nodes can be tagged amenity=pub.
     void node(const osmium::Node& node) {
-        const auto lookup = std::to_string(node.id()) + "!" + std::to_string(node.version()) + "!node";
-        // const auto lookup = "node!" + std::to_string(node.id());
+        const auto lookup = make_lookup(node.id(), 1, node.version());
         if (node.tags().empty()) {
             return;
         }
@@ -92,7 +94,7 @@ public:
     }
 
     void way(const osmium::Way& way) {
-        const auto lookup = std::to_string(way.id()) + "!" + std::to_string(way.version()) + "!way";
+        const auto lookup = make_lookup(way.id(), 2, way.version());
         if (way.tags().empty()) {
             return;
         }
@@ -100,7 +102,7 @@ public:
     }
 
     void relation(const osmium::Relation& relation) {
-        const auto lookup = std::to_string(relation.id()) + "!" + std::to_string(relation.version()) + "!relation";
+        const auto lookup = make_lookup(relation.id(), 3, relation.version());
         if (relation.tags().empty()) {
             return;
         }
