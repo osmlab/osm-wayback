@@ -31,9 +31,11 @@ addons:
             - gcc-4.8
             - libboost1.55-dev
 
+before_install:
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install rocksdb; fi
 install:
     - git clone --quiet --depth 1 https://github.com/osmcode/libosmium.git ../libosmium
-    - git clone --quiet --depth 1 https://github.com/facebook/rocksdb.git ../rocksdb
 
 script:
     - scripts/travis_script.sh
