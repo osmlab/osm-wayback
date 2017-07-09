@@ -3,7 +3,7 @@ Stores a RocksDB with OSM ID &lt;-> tag history and augments GeoJSON files with 
 
 ## Build
 
-If you need to source compile then you'll need `libosmium` and `rocksdb` headers available. Then you build the program with `cmake`:
+If you need to source compile then you'll need [`libosmium`](https://github.com/osmcode/libosmium) and [`rocksdb`](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) headers available. Then you build the program with `cmake`:
 
 ```
 mkdir build
