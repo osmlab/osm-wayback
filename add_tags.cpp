@@ -18,7 +18,7 @@
 #include "rocksdb/cache.h"
 
 long int make_lookup(int osm_id, int type, int version) {
-    return osm_id * 10000 + type * 1000 + version;
+    return osm_id + type * 1000 + version;
 }
 
 int main(int argc, char* argv[]) {
@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
                 if(type == "way") osmType = 2;
                 if(type == "relation") osmType = 3;
 
-                for(int v = 1; v <= version; v++) { //Going up to current version so that history is complete
+                for(int v = 1; v < version+1; v++) { //Going up to current version so that history is complete
                     const auto lookup = std::to_string(make_lookup(osm_id, osmType, v));
                     std::string json;
                     rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &json);
@@ -69,40 +69,40 @@ int main(int argc, char* argv[]) {
                         if(stored_doc.Parse<0>(json.c_str()).HasParseError()) {
                           continue;
                         }
-                        
+
                         object_history.PushBack(stored_doc, doc.GetAllocator());
                     } else {
                         continue;
                     }
                 }
-                
+
                 //Calculate diffs
                 //TODO: Could save an iteration if we compute this in the previous loop
                 //TODO: Refactor should pull @tags out and store them in a <vector>[<string>,<string>];
                         //This lookup then ignores all the rapidjson overhead and would only create objects from strings as needed!
                         //Create good test methods for benchmarking this?
                 for(rapidjson::SizeType idx=0; idx<object_history.Size(); idx++){
-                    
+
                     rapidjson::Value& hist_obj = object_history[idx];
-                    
+
                     if (idx==0){
                         rapidjson::Value new_tags(rapidjson::kObjectType);
                         hist_obj.AddMember("@new_tags", hist_obj["@tags"], doc.GetAllocator());
                     }
                     else{
                         const rapidjson::Value& tags = hist_obj["@tags"];
-                        
+
                         rapidjson::Value new_tags(rapidjson::kObjectType);
                         rapidjson::Value modified_tags(rapidjson::kObjectType);
-                        
+
                         for (rapidjson::Value::ConstMemberIterator it= tags.MemberBegin(); it != tags.MemberEnd(); it++){
 
                             rapidjson::Value tag_key(rapidjson::StringRef(it->name.GetString()));
                             rapidjson::Value tag_val(rapidjson::StringRef(it->value.GetString()));
-                            
+
                             if (object_history[idx-1]["@tags"].HasMember(tag_key)==true) {
-                            //This key exists in the previous tag list                            
-                                
+                            //This key exists in the previous tag list
+
                                 //Check if the values are the same
                                 if (object_history[idx-1]["@tags"][tag_key] == tag_val ){
                                     //The values are the same.
@@ -112,43 +112,46 @@ int main(int argc, char* argv[]) {
                                     //Set Value to [OLD, NEW]
 
                                     std::string s = object_history[idx-1]["@tags"][tag_key].GetString();
-                                    
+
                                     rapidjson::Value prev_val;
                                     prev_val.SetString(rapidjson::StringRef(s));
-                                    
+
                                     rapidjson::Value modified_tag(rapidjson::kArrayType);
                                     modified_tag.PushBack(prev_val, doc.GetAllocator());
                                     modified_tag.PushBack(tag_val, doc.GetAllocator());
-                                    
+
                                     modified_tags.AddMember(tag_key, modified_tag, doc.GetAllocator());
                                 }
-                                
+
                             }else{
                                 //This is a new tag
                                 new_tags.AddMember(tag_key, tag_val, doc.GetAllocator());
                             }
                         }
-                        
+
                         //Here we need to handle deleted tags; this means iterating the list of the previous tags.
                         //TODO: If we can move this back to the SET {} method as in the Python implementation... we could save some time?
                         rapidjson::Value deleted_tags(rapidjson::kObjectType);
 
                         //In this loop we are guaranteed to be at idx > 0, so there will always be a last version;
                         const rapidjson::Value& prevObjTags = object_history[idx-1]["@tags"];
-                        
+
+
                         //Iterate over the tags in the previous entry
                         for (rapidjson::Value::ConstMemberIterator it= prevObjTags.MemberBegin(); it != prevObjTags.MemberEnd(); it++){
-                            
+
+
                             rapidjson::Value prev_tag_key(rapidjson::StringRef(it->name.GetString()));
-                            
+
                             if (hist_obj["@tags"].HasMember(prev_tag_key)==false) {
+
                             //This key no longer exists, so it has been deleted.
                                 rapidjson::Value prev_tag_val(rapidjson::StringRef(it->value.GetString()));
                                 deleted_tags.AddMember(prev_tag_key, prev_tag_val, doc.GetAllocator());
                             }
-                            
+
                         }
-                        
+
                         //Only add these objects to the history object if they have values.
                         if (new_tags.ObjectEmpty() == false){
                             hist_obj.AddMember("@new_tags", new_tags, doc.GetAllocator());
@@ -162,7 +165,7 @@ int main(int argc, char* argv[]) {
                     }
 
                 }
-                
+
                 //TODO: Remove all "@tags" objects from each hist_obj; We used these tags in the previous loops, so we need to save them here.
 
                 //Last, add history to original object

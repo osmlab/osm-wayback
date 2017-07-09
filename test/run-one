@@ -1,0 +1,6 @@
+echo "Running One: $1"
+
+cd scripts
+
+time ./run-file.sh $1
+

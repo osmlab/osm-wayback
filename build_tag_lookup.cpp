@@ -34,7 +34,7 @@
 #include <rocksdb/filter_policy.h>
 
 long int make_lookup(int osm_id, int type, int version) {
-    return osm_id * 10000 + type * 1000 + version;
+    return osm_id + type * 1000 + version;
 }
 
 class TagStoreHandler : public osmium::handler::Handler {
@@ -87,11 +87,11 @@ public:
     void node(const osmium::Node& node) {
         node_count += 1;
         const auto lookup = make_lookup(node.id(), 1, node.version());
-            // const auto lookup = "node!" + std::to_string(node.id());
-            if (node.tags().empty()) {
-                return;
-            }
-            store_tags(lookup, node);
+        // const auto lookup = "node!" + std::to_string(node.id());
+        if (node.tags().empty()) {
+            return;
+        }
+        store_tags(lookup, node);
         //Status update?
         std::cerr << "\rProcessed: " << (node_count/1000) << " K nodes";
     }
