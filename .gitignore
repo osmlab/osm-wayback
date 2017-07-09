@@ -32,3 +32,8 @@ build/
 *.exe
 *.out
 *.app
+
+#Stupid XCode
+*.xcodeproj/
+
+.gitignore
