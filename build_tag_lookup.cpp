@@ -2,7 +2,7 @@
 
   Build Tag History Database
 
-  (Based on osmium_pub_names example)  
+  (Based on osmium_pub_names example)
 
 */
 
@@ -45,7 +45,7 @@ class TagStoreHandler : public osmium::handler::Handler {
         rapidjson::Document doc;
 
         doc.SetObject();
-                
+
         rapidjson::Document::AllocatorType& a = doc.GetAllocator();
 
         doc.AddMember("@timestamp", object.timestamp().to_iso(), a); //ISO is helpful for debugging, but we should leave it
@@ -55,23 +55,22 @@ class TagStoreHandler : public osmium::handler::Handler {
         doc.AddMember("@uid", object.uid(), a);
         doc.AddMember("@changeset", object.changeset(), a);
         doc.AddMember("@version", object.version(), a);
-        
+
         //Ignore trying to store geometries, but if we could scale that, it'd be awesome.
-        
         const osmium::TagList& tags = object.tags();
-        
+
         rapidjson::Value object_tags(rapidjson::kObjectType);
-        
+
         for (const osmium::Tag& tag : tags) {
-            
+
             rapidjson::Value key(rapidjson::StringRef(tag.key()));
             rapidjson::Value value(rapidjson::StringRef(tag.value()));
 
             object_tags.AddMember(key, value, a);
         }
-        
+
         doc.AddMember("@tags", object_tags, a);
-        
+
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
         doc.Accept(writer);
@@ -93,40 +92,42 @@ public:
         }
         store_tags(lookup, node);
         //Status update?
-        std::cerr << "\rProcessed: " << (node_count/1000) << " K nodes";
+        std::cerr << "\rProcessed: " << node_count/1000 << " K nodes";
     }
-    
-    //Add something to do on the end of nodes (like flush)
 
-    
     void way(const osmium::Way& way) {
-        way_count += 1;
         const auto lookup = make_lookup(way.id(), 2, way.version());
         if (way.tags().empty()) {
             return;
         }
         store_tags(lookup, way);
-        
+
         if ( way_count % 1000 == 0)
         {
-            std::cerr << "\rProcessed: " << (way_count/1000) << " K ways                   ";
+          if (way_count == 0){
+            std::cerr << "\rProcessed: " << node_count << " nodes" << std::endl;
+          }
+            std::cerr << "\rProcessed: " << way_count/1000 << " K ways                   ";
         }
+        way_count++;
     }
-    
-    //Add something to do on the end of ways (like flush)
 
     void relation(const osmium::Relation& relation) {
-        rel_count += 1;
         const auto lookup = make_lookup(relation.id(), 3, relation.version());
         if (relation.tags().empty()) {
             return;
         }
         store_tags(lookup, relation);
-        
+
         if ( rel_count % 1000 == 0)
         {
-            std::cerr << "\rProcessed: " << (rel_count/1000.0) << " K relations                   ";
+          if (rel_count == 0)
+          {
+            std::cerr << "\rProcessed: " << way_count << " ways" << std::endl;
+          }
+            std::cerr << "\rProcessed: " << rel_count/1000 << " K relations                   ";
         }
+        rel_count++;
     }
 };
 
@@ -152,5 +153,6 @@ int main(int argc, char* argv[]) {
     TagStoreHandler tag_handler{db};
     osmium::io::Reader reader{osm_filename, osmium::osm_entity_bits::node | osmium::osm_entity_bits::way | osmium::osm_entity_bits::relation};
     osmium::apply(reader, tag_handler);
-}
 
+    //TODO: Put status updates down here and not in the middle of processing?
+}

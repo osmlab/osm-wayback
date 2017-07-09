@@ -29,6 +29,9 @@ int main(int argc, char* argv[]) {
 
     std::string index_dir = argv[1];
 
+    int feature_count = 0;
+    int error_count = 0;
+
     rocksdb::Options options;
     options.create_if_missing = false;
     options.allow_mmap_writes = true;
@@ -43,8 +46,11 @@ int main(int argc, char* argv[]) {
     rapidjson::Document doc;
     for (std::string line; std::getline(std::cin, line);) {
         if(doc.Parse<0>(line.c_str()).HasParseError()) {
-            std::cout << "ERROR" << std::endl;
+            //std::cerr << "ERROR" << std::endl;
+            error_count++;
         } else {
+            feature_count++;
+
             if(!doc.HasMember("properties")) continue;
             if(!doc["properties"]["@id"].IsInt() || !doc["properties"]["@version"].IsInt() || !doc["properties"]["@type"].IsString()) continue;
 
@@ -61,14 +67,34 @@ int main(int argc, char* argv[]) {
                 if(type == "way") osmType = 2;
                 if(type == "relation") osmType = 3;
 
+                //  Adding Pseudocode of what _may_ improve performance?
+                //  Objective is to iterate ONCE through the tags and build a different object in memory that can be
+                //  released after each object; then @tags object can be deleted too at each version.
+
+                // vector hist_tags = [ [(k,v),(k,v),(k,v)] ]
+
                 for(int v = 1; v < version+1; v++) { //Going up to current version so that history is complete
                     const auto lookup = std::to_string(make_lookup(osm_id, osmType, v));
                     std::string json;
                     rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &json);
                     if (s.ok()) {
+
                         if(stored_doc.Parse<0>(json.c_str()).HasParseError()) {
                           continue;
                         }
+
+                        /*
+                        rapidjson::Value new_tags(rapidjson::kObjectType);
+                        rapidjson::Value modified_tags(rapidjson::kObjectType);
+
+                        if (version == 1){
+
+                        }else{
+
+                        }
+
+                        */
+
 
                         object_history.PushBack(stored_doc, doc.GetAllocator());
                     } else {
@@ -77,7 +103,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 //Calculate diffs
-                //TODO: Could save an iteration if we compute this in the previous loop
+                //TODO: Could save an iteration if we compute this in the previous loop (see psuedocode above)
                 //TODO: Refactor should pull @tags out and store them in a <vector>[<string>,<string>];
                         //This lookup then ignores all the rapidjson overhead and would only create objects from strings as needed!
                         //Create good test methods for benchmarking this?
@@ -175,13 +201,14 @@ int main(int argc, char* argv[]) {
                 rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
                 doc.Accept(writer);
                 std::cout << buffer.GetString() << std::endl;
+
+                std::cerr << "\rProcessed: " << (feature_count/1000) << " K features";
+
             } catch (const std::exception& ex) {
                 std::cerr<< ex.what() << std::endl;
                 continue;
             }
-
         }
     }
-
     delete db;
 }
