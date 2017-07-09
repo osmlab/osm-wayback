@@ -35,5 +35,8 @@ build/
 
 #Stupid XCode
 *.xcodeproj/
-
 .gitignore
+
+#Indexes and Testing and Such
+test/INDEXES/*
+test/history-geojson/*
