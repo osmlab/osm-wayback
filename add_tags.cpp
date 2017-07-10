@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
 
     rocksdb::BlockBasedTableOptions table_opts;
     table_opts.filter_policy = std::shared_ptr<const rocksdb::FilterPolicy>(rocksdb::NewBloomFilterPolicy(10));
-    table_opts.block_cache = rocksdb::NewLRUCache(4 * 1024 * 1024 * 1024, 10);
+    // table_opts.block_cache = rocksdb::NewLRUCache(4 * 1024 * 1024 * 1024, 10);
     options.table_factory.reset(NewBlockBasedTableFactory(table_opts));
     rocksdb::DB* db;
     rocksdb::Status status = rocksdb::DB::Open(options, index_dir, &db);
@@ -172,9 +172,9 @@ int main(int argc, char* argv[]) {
                                             rapidjson::Value key(rapidjson::StringRef(pos->first));
 
                                             rapidjson::Value modified_tag(rapidjson::kArrayType);
-                                            modified_tag.PushBack(prev_val, doc.GetAllocator());
-                                            modified_tag.PushBack(new_val, doc.GetAllocator());
-                                            mod_tags.AddMember(key, modified_tag, doc.GetAllocator());
+                                            modified_tag.PushBack(prev_val, stored_doc.GetAllocator());
+                                            modified_tag.PushBack(new_val, stored_doc.GetAllocator());
+                                            mod_tags.AddMember(key, modified_tag, stored_doc.GetAllocator());
                                         }
                                         //We've dealt with it, so now erase it from the previous entry
                                         tag_history[hist_it_idx-1].erase(search->first);
@@ -205,7 +205,7 @@ int main(int argc, char* argv[]) {
                         hist_it_idx++;
 
                         //Save the new object into the object history
-                        object_history.PushBack(stored_doc, doc.GetAllocator());
+                        object_history.PushBack(stored_doc, stored_doc.GetAllocator());
 
                     } else {
                         error_count++;
