@@ -2,6 +2,8 @@
 #include <cstring>
 #include <iostream>
 #include <sstream>
+#include <map>
+#include <iterator>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
@@ -17,9 +19,37 @@
 #include <rocksdb/filter_policy.h>
 #include "rocksdb/cache.h"
 
-long int make_lookup(int osm_id, int type, int version) {
-    return osm_id + type * 1000 + version;
+
+std::string make_lookup(int osm_id, int type, int version){
+  return std::to_string(osm_id) + "!" + std::to_string(version) + "!" + std::to_string(type);
 }
+
+// long int make_lookup(int osm_id, int type, int version) {
+//     return osm_id*1000 + type * 100 + version;
+// };
+
+//https://stackoverflow.com/questions/8473009/how-to-efficiently-compare-two-maps-of-strings-in-c
+struct Pair_First_Equal {
+    template <typename Pair>
+    bool operator() (Pair const &lhs, Pair const &rhs) const {
+        return lhs.first == rhs.first;
+    }
+};
+
+template <typename Map>
+bool map_compare (Map const &lhs, Map const &rhs) {
+    // No predicate needed because there is operator== for pairs already.
+    return lhs.size() == rhs.size()
+        && std::equal(lhs.begin(), lhs.end(),
+                      rhs.begin());
+}
+// template <typename Map>
+// bool key_compare (Map const &lhs, Map const &rhs) {
+//     return lhs.size() == rhs.size()
+//         && std::equal(lhs.begin(), lhs.end(),
+//                       rhs.begin(),
+//                       Pair_First_Equal()); // predicate instance
+// };
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -28,6 +58,9 @@ int main(int argc, char* argv[]) {
     }
 
     std::string index_dir = argv[1];
+
+    int feature_count = 0;
+    int error_count = 0;
 
     rocksdb::Options options;
     options.create_if_missing = false;
@@ -43,8 +76,10 @@ int main(int argc, char* argv[]) {
     rapidjson::Document doc;
     for (std::string line; std::getline(std::cin, line);) {
         if(doc.Parse<0>(line.c_str()).HasParseError()) {
-            std::cout << "ERROR" << std::endl;
+            std::cerr << "ERROR" << std::endl;
         } else {
+            feature_count++;
+
             if(!doc.HasMember("properties")) continue;
             if(!doc["properties"]["@id"].IsInt() || !doc["properties"]["@version"].IsInt() || !doc["properties"]["@type"].IsString()) continue;
 
@@ -61,112 +96,122 @@ int main(int argc, char* argv[]) {
                 if(type == "way") osmType = 2;
                 if(type == "relation") osmType = 3;
 
+                //  Objective is to iterate ONCE through the tags and build a different object in memory that can be
+                //  released after each object; then @tags object can be deleted too at each version.
+
+                std::vector < std::map<std::string, std::string> > tag_history;
+
+                int hist_it_idx = 0; //Can't trust the versions because they may not be contiguous
+
                 for(int v = 1; v < version+1; v++) { //Going up to current version so that history is complete
-                    const auto lookup = std::to_string(make_lookup(osm_id, osmType, v));
+                    const auto lookup = make_lookup(osm_id, osmType, v);
                     std::string json;
                     rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &json);
                     if (s.ok()) {
-                        if(stored_doc.Parse<0>(json.c_str()).HasParseError()) {
-                          continue;
-                        }
 
+                        //S is not OK for the most part;
+
+                        if(stored_doc.Parse<0>(json.c_str()).HasParseError()) { continue; }
+
+                        std::map<std::string,std::string> version_tags;
+
+                        for (rapidjson::Value::ConstMemberIterator it= stored_doc["@tags"].MemberBegin(); it != stored_doc["@tags"].MemberEnd(); it++){
+
+                            //Add the tags to the version_tags map
+                            version_tags.insert( std::make_pair( it->name.GetString(), it->value.GetString() ) );
+
+                        }
+                        //We need to be careful ^ about order? How does order matter here?
+                        tag_history.push_back(version_tags);
+
+                        //It's the first version
+                        if (hist_it_idx == 0){
+
+                            //Is this the most efficient way? we just need to rename it from @tags to @new_tags
+                            stored_doc.AddMember("@new_tags", stored_doc["@tags"], stored_doc.GetAllocator());
+                            stored_doc.RemoveMember("@tags");
+
+                        }else{
+                            //Both v and v-1 tags are mapped in memory, so we can do map comparison
+
+                            //Check if they are exactly the same:
+                            if ( map_compare( tag_history[hist_it_idx-1], tag_history[hist_it_idx] ) ){
+                                //Tags have not changed at all
+                                //TODO: Delete @tags (after debugging)
+                                // ^ I really hope this is working properly
+                            }else{
+                                //There has been one of 3 changes:
+                                //1. New tags
+                                //2. Mod tags
+                                //3. Del tags
+
+                                //Trying to wrap this all into ONE iteration.
+                                typedef std::map<std::string,std::string> StringStringMap;
+                                StringStringMap::iterator pos;
+
+                                rapidjson::Value mod_tags(rapidjson::kObjectType);
+                                rapidjson::Value new_tags(rapidjson::kObjectType);
+
+                                for (pos = tag_history[hist_it_idx].begin(); pos != tag_history[hist_it_idx].end(); ++pos) {
+
+                                    //First, check if the current key exists in the previous entry:
+                                    std::map<std::string,std::string>::iterator search = tag_history[hist_it_idx-1].find(pos->first);
+
+                                    if (search == tag_history[hist_it_idx-1].end()) {
+                                        //Not found, so it's a new tag
+                                        rapidjson::Value new_key(rapidjson::StringRef(pos->first));
+                                        rapidjson::Value new_val(rapidjson::StringRef(pos->second));
+                                        new_tags.AddMember(new_key, new_val, stored_doc.GetAllocator());
+
+                                    }else {
+                                        //It exists, check if it's the same, if not, it's a modified tag
+                                        if( pos->second != search->second) {
+                                            rapidjson::Value prev_val(rapidjson::StringRef(search->second));
+
+                                            rapidjson::Value new_val(rapidjson::StringRef(pos->second));
+                                            rapidjson::Value key(rapidjson::StringRef(pos->first));
+
+                                            rapidjson::Value modified_tag(rapidjson::kArrayType);
+                                            modified_tag.PushBack(prev_val, doc.GetAllocator());
+                                            modified_tag.PushBack(new_val, doc.GetAllocator());
+                                            mod_tags.AddMember(key, modified_tag, doc.GetAllocator());
+                                        }
+                                        //We've dealt with it, so now erase it from the previous entry
+                                        tag_history[hist_it_idx-1].erase(search->first);
+                                    }
+
+                                }
+                                //If we have modified or new tags, add them
+                                if(mod_tags.ObjectEmpty()==false){
+                                    stored_doc.AddMember("@mod_tags", mod_tags, stored_doc.GetAllocator());
+                                }
+                                if(new_tags.ObjectEmpty()==false){
+                                    stored_doc.AddMember("@new_tags", new_tags, stored_doc.GetAllocator());
+                                }
+
+                                //Since we've deleted keys from above, if there are any values left in the map, then we save those as deleted keys...
+
+                                if(tag_history[hist_it_idx-1].empty() == false){
+                                    rapidjson::Value del_tags(rapidjson::kObjectType);
+                                    for (pos = tag_history[hist_it_idx-1].begin(); pos != tag_history[hist_it_idx-1].end(); ++pos) {
+                                        rapidjson::Value del_key(rapidjson::StringRef(pos->first));
+                                        rapidjson::Value del_val(rapidjson::StringRef(pos->second));
+                                        del_tags.AddMember(del_key, del_val, stored_doc.GetAllocator());
+                                    }
+                                    stored_doc.AddMember("@del_tags", del_tags, stored_doc.GetAllocator());
+                                }
+                            }
+                        }
+                        hist_it_idx++;
+
+                        //Save the new object into the object history
                         object_history.PushBack(stored_doc, doc.GetAllocator());
+
                     } else {
+                        error_count++;
                         continue;
                     }
                 }
-
-                //Calculate diffs
-                //TODO: Could save an iteration if we compute this in the previous loop
-                //TODO: Refactor should pull @tags out and store them in a <vector>[<string>,<string>];
-                        //This lookup then ignores all the rapidjson overhead and would only create objects from strings as needed!
-                        //Create good test methods for benchmarking this?
-                for(rapidjson::SizeType idx=0; idx<object_history.Size(); idx++){
-
-                    rapidjson::Value& hist_obj = object_history[idx];
-
-                    if (idx==0){
-                        rapidjson::Value new_tags(rapidjson::kObjectType);
-                        hist_obj.AddMember("@new_tags", hist_obj["@tags"], doc.GetAllocator());
-                    }
-                    else{
-                        const rapidjson::Value& tags = hist_obj["@tags"];
-
-                        rapidjson::Value new_tags(rapidjson::kObjectType);
-                        rapidjson::Value modified_tags(rapidjson::kObjectType);
-
-                        for (rapidjson::Value::ConstMemberIterator it= tags.MemberBegin(); it != tags.MemberEnd(); it++){
-
-                            rapidjson::Value tag_key(rapidjson::StringRef(it->name.GetString()));
-                            rapidjson::Value tag_val(rapidjson::StringRef(it->value.GetString()));
-
-                            if (object_history[idx-1]["@tags"].HasMember(tag_key)==true) {
-                            //This key exists in the previous tag list
-
-                                //Check if the values are the same
-                                if (object_history[idx-1]["@tags"][tag_key] == tag_val ){
-                                    //The values are the same.
-                                    // Don't do anything: nothing has changed
-                                }else{
-                                    //There was a change, make a @modified_tags object
-                                    //Set Value to [OLD, NEW]
-
-                                    std::string s = object_history[idx-1]["@tags"][tag_key].GetString();
-
-                                    rapidjson::Value prev_val;
-                                    prev_val.SetString(rapidjson::StringRef(s));
-
-                                    rapidjson::Value modified_tag(rapidjson::kArrayType);
-                                    modified_tag.PushBack(prev_val, doc.GetAllocator());
-                                    modified_tag.PushBack(tag_val, doc.GetAllocator());
-
-                                    modified_tags.AddMember(tag_key, modified_tag, doc.GetAllocator());
-                                }
-
-                            }else{
-                                //This is a new tag
-                                new_tags.AddMember(tag_key, tag_val, doc.GetAllocator());
-                            }
-                        }
-
-                        //Here we need to handle deleted tags; this means iterating the list of the previous tags.
-                        //TODO: If we can move this back to the SET {} method as in the Python implementation... we could save some time?
-                        rapidjson::Value deleted_tags(rapidjson::kObjectType);
-
-                        //In this loop we are guaranteed to be at idx > 0, so there will always be a last version;
-                        const rapidjson::Value& prevObjTags = object_history[idx-1]["@tags"];
-
-
-                        //Iterate over the tags in the previous entry
-                        for (rapidjson::Value::ConstMemberIterator it= prevObjTags.MemberBegin(); it != prevObjTags.MemberEnd(); it++){
-
-
-                            rapidjson::Value prev_tag_key(rapidjson::StringRef(it->name.GetString()));
-
-                            if (hist_obj["@tags"].HasMember(prev_tag_key)==false) {
-
-                            //This key no longer exists, so it has been deleted.
-                                rapidjson::Value prev_tag_val(rapidjson::StringRef(it->value.GetString()));
-                                deleted_tags.AddMember(prev_tag_key, prev_tag_val, doc.GetAllocator());
-                            }
-
-                        }
-
-                        //Only add these objects to the history object if they have values.
-                        if (new_tags.ObjectEmpty() == false){
-                            hist_obj.AddMember("@new_tags", new_tags, doc.GetAllocator());
-                        }
-                        if (modified_tags.ObjectEmpty() == false){
-                            hist_obj.AddMember("@modified_tags", modified_tags, doc.GetAllocator());
-                        }
-                        if (deleted_tags.ObjectEmpty() == false){
-                            hist_obj.AddMember("@deleted_tags",  new_tags, doc.GetAllocator());
-                        }
-                    }
-
-                }
-
-                //TODO: Remove all "@tags" objects from each hist_obj; We used these tags in the previous loops, so we need to save them here.
 
                 //Last, add history to original object
                 doc["properties"].AddMember("@history", object_history, doc.GetAllocator());
@@ -175,13 +220,18 @@ int main(int argc, char* argv[]) {
                 rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
                 doc.Accept(writer);
                 std::cout << buffer.GetString() << std::endl;
+
+                if(feature_count%10000==0){
+                  std::cerr << "\rProcessed: " << (feature_count/1000) << " K features";
+                }
+
             } catch (const std::exception& ex) {
                 std::cerr<< ex.what() << std::endl;
                 continue;
             }
-
+            //TODO what happens if there is no history? does this still get written?
         }
     }
-
     delete db;
+    std::cerr << "\rProcessed: " << feature_count << " features successfully, with " << error_count << " errors."<<std::endl;
 }
