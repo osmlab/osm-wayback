@@ -97,7 +97,9 @@ public:
         }
         store_tags(lookup, node);
         //Status update?
-        std::cerr << "\rProcessed: " << node_count/1000 << " K nodes";
+        if ( node_count % 10000 == 0){
+            std::cerr << "\rProcessed: " << node_count/1000 << " K nodes";
+        }
     }
 
     void way(const osmium::Way& way) {
@@ -107,7 +109,7 @@ public:
         }
         store_tags(lookup, way);
 
-        if ( way_count % 1000 == 0)
+        if ( way_count % 10000 == 0)
         {
           if (way_count == 0){
             std::cerr << "\rProcessed: " << node_count << " nodes" << std::endl;
@@ -124,7 +126,7 @@ public:
         }
         store_tags(lookup, relation);
 
-        if ( rel_count % 1000 == 0)
+        if ( rel_count % 10000 == 0)
         {
           if (rel_count == 0)
           {

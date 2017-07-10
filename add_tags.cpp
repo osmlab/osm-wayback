@@ -221,7 +221,9 @@ int main(int argc, char* argv[]) {
                 doc.Accept(writer);
                 std::cout << buffer.GetString() << std::endl;
 
-                std::cerr << "\rProcessed: " << (feature_count/1000) << " K features";
+                if(feature_count%10000==0){
+                  std::cerr << "\rProcessed: " << (feature_count/1000) << " K features";
+                }
 
             } catch (const std::exception& ex) {
                 std::cerr<< ex.what() << std::endl;
