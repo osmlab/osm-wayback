@@ -33,15 +33,20 @@
 #include <rocksdb/table.h>
 #include <rocksdb/filter_policy.h>
 
-long int make_lookup(int osm_id, int type, int version) {
-    return osm_id + type * 1000 + version;
+
+std::string make_lookup(int osm_id, int type, int version){
+  return std::to_string(osm_id) + "!" + std::to_string(version) + "!" + std::to_string(type);
 }
+
+// long int make_lookup(int osm_id, int type, int version) {
+//     return osm_id*1000 + type * 100 + version;
+// }
 
 class TagStoreHandler : public osmium::handler::Handler {
     rocksdb::DB* m_db;
 
     //TODO: Yes this is stupid and slow
-    void store_tags(const long int lookup, const osmium::OSMObject& object) {
+    void store_tags(const std::string lookup, const osmium::OSMObject& object) {
         rapidjson::Document doc;
 
         doc.SetObject();
@@ -75,7 +80,7 @@ class TagStoreHandler : public osmium::handler::Handler {
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
         doc.Accept(writer);
 
-        rocksdb::Status stat = m_db->Put(rocksdb::WriteOptions(), std::to_string(lookup), buffer.GetString());
+        rocksdb::Status stat = m_db->Put(rocksdb::WriteOptions(), lookup, buffer.GetString());
     }
 
 public:
