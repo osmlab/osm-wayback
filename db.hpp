@@ -53,7 +53,9 @@ public:
         rapidjson::Document::AllocatorType& a = doc.GetAllocator();
 
         doc.AddMember("@timestamp", object.timestamp().to_iso(), a); //ISO is helpful for debugging, but we should leave it
-        doc.AddMember("@deleted", object.deleted(), a);
+        if (object.deleted()){
+          doc.AddMember("@deleted", object.deleted(), a);
+        }
         doc.AddMember("@visible", object.visible(), a);
         doc.AddMember("@user", std::string{object.user()}, a);
         doc.AddMember("@uid", object.uid(), a);
