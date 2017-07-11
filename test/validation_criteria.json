@@ -1,0 +1,66 @@
+{
+  "Phuket" : {
+    "ways" : {
+      "418244690" : {
+        "version" : 4,
+        "history_length" : 4,
+        "changeset" : 46889273,
+        "history" : [
+          {"@timestamp":"2016-05-15T06:19:12Z",
+            "@deleted":false,
+            "@visible":true,
+            "@user":"GrandMotivator",
+            "@uid":3829469,
+            "@changeset":39324756,
+            "@version":1,
+            "@new_tags":{"name":"Phuket Bus Station",
+              "amenity":"bus_station",
+              "building":"yes"
+            }
+          },
+          {"@timestamp":"2017-01-25T13:08:10Z",
+            "@deleted":false,
+            "@visible":true,
+            "@user":"AndrewCurtis02",
+            "@uid":4712858,
+            "@changeset":45475049,
+            "@version":2,"@tags":{"name":"Phuket Bus Station terminal 1","amenity":"bus_station","building":"yes"},
+            "@mod_tags": {
+              "buil":["Phuket Bus Station","???|?\u0007\u0000@ŵ?|?\u0007\u0000`\u0002\u0000 terminal 1"]
+            }
+          },
+          {"@timestamp":"2017-02-21T02:25:46Z",
+            "@deleted":false,
+            "@visible":true,
+            "@user":"Yoav ヨギ",
+            "@uid":5349223,
+            "@changeset":46261499,
+            "@version":3,
+            "@tags":{"name":"Phuket Bus Station","amenity":"bus_station","name:en":"Phuket Bus Station (terminal 1)","building":"yes"},
+            "@mod_tags":{
+              "name":["???|?\u0007\u0000@ŵ?|?\u0007\u0000`\u0002\u0000 terminal 1","Phuket Bus Station"]
+            },
+            "@new_tags":{
+              "name:en":"\u0000\u0000\u0000\u0000\u0000\u0000\u0000`???|?\u0007\u0000@\u0002\u0000 (terminal 1\u0002"
+            }
+          },
+          {"@timestamp":"2017-03-16T07:01:35Z",
+            "@deleted":false,
+            "@visible":true,
+            "@user":"Maria Angelova",
+            "@uid":5467361,
+            "@changeset":46889273,
+            "@version":4,
+            "@tags":{"name":"Phuket Bus Station","amenity":"bus_station","name:en":"Phuket Bus Terminal 1","building":"yes"},
+            "@mod_tags":{
+              "name:en":["\u0000\u0000\u0000\u0000\u0000\u0000\u0000`???|?\u0007\u0000@\u0002\u0000 (terminal 1\u0002","Phuket Bus Terminal 1"]
+            }
+          }
+        ]
+      },
+      "anotherID" : {
+        "@version": 192
+      }
+    }
+  }
+}

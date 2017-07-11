@@ -50,7 +50,7 @@ void write_with_history_tags(TagStore* store, const std::string line) {
     }
 
     if(!geojson_doc.HasMember("properties")) return;
-    if(!geojson_doc["properties"]["@id"].IsInt() || !geojson_doc["properties"]["@version"].IsInt() || !geojson_doc["properties"]["@type"].IsString()) return;
+    if(!geojson_doc["properties"]["@id"].IsInt64() || !geojson_doc["properties"]["@version"].IsInt() || !geojson_doc["properties"]["@type"].IsString()) return;
 
     const auto version = geojson_doc["properties"]["@version"].GetInt();
     const auto osm_id = geojson_doc["properties"]["@id"].GetInt();

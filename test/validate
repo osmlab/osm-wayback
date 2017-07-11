@@ -1,0 +1,33 @@
+#!/usr/local/bin/python3
+
+import os, sys, json, pprint
+
+print("Running History Validation based on custom criteria outlined in validation_criteria.json")
+
+criteria = json.load(open("validation_criteria.json",'r'))
+
+pprint.pprint(criteria)
+
+# Let's start with Phuket, because we know that one well.
+
+ways = list(criteria['Phuket']['ways'].keys())
+
+inFile = open("history-geojson/Phuket-history.geojson")
+
+lineIdx = 0
+while(True):
+    lineIdx += 1
+    try:
+        line = inFile.readline()
+
+        feature = json.loads(line)
+
+        if feature['@id'] in ways:
+
+            print("Found way: ", feature['@id'])
+            pprint.pprint(criteria.nodes[''])
+
+    except UnicodeDecodeError:
+        print("ERR")
+        print("Cannot Read Line: ", lineIdx)
+        sys.exit(1)
