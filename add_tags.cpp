@@ -15,18 +15,8 @@
 
 #include <osmium/geom/rapid_geojson.hpp>
 #include "rocksdb/db.h"
-#include <rocksdb/table.h>
-#include <rocksdb/filter_policy.h>
-#include "rocksdb/cache.h"
 
-
-std::string make_lookup(int osm_id, int type, int version){
-  return std::to_string(osm_id) + "!" + std::to_string(version) + "!" + std::to_string(type);
-}
-
-// long int make_lookup(int osm_id, int type, int version) {
-//     return osm_id*1000 + type * 100 + version;
-// };
+#include "db.hpp"
 
 //https://stackoverflow.com/questions/8473009/how-to-efficiently-compare-two-maps-of-strings-in-c
 struct Pair_First_Equal {
@@ -43,13 +33,6 @@ bool map_compare (Map const &lhs, Map const &rhs) {
         && std::equal(lhs.begin(), lhs.end(),
                       rhs.begin());
 }
-// template <typename Map>
-// bool key_compare (Map const &lhs, Map const &rhs) {
-//     return lhs.size() == rhs.size()
-//         && std::equal(lhs.begin(), lhs.end(),
-//                       rhs.begin(),
-//                       Pair_First_Equal()); // predicate instance
-// };
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -57,21 +40,11 @@ int main(int argc, char* argv[]) {
         std::exit(1);
     }
 
-    std::string index_dir = argv[1];
-
     int feature_count = 0;
     int error_count = 0;
 
-    rocksdb::Options options;
-    options.create_if_missing = false;
-    options.allow_mmap_writes = true;
-
-    rocksdb::BlockBasedTableOptions table_opts;
-    table_opts.filter_policy = std::shared_ptr<const rocksdb::FilterPolicy>(rocksdb::NewBloomFilterPolicy(10));
-    // table_opts.block_cache = rocksdb::NewLRUCache(4 * 1024 * 1024 * 1024, 10);
-    options.table_factory.reset(NewBlockBasedTableFactory(table_opts));
-    rocksdb::DB* db;
-    rocksdb::Status status = rocksdb::DB::Open(options, index_dir, &db);
+    std::string index_dir = argv[1];
+    TagStore store(index_dir);
 
     rapidjson::Document doc;
     for (std::string line; std::getline(std::cin, line);) {
@@ -106,7 +79,7 @@ int main(int argc, char* argv[]) {
                 for(int v = 1; v < version+1; v++) { //Going up to current version so that history is complete
                     const auto lookup = make_lookup(osm_id, osmType, v);
                     std::string json;
-                    rocksdb::Status s= db->Get(rocksdb::ReadOptions(), lookup, &json);
+                    rocksdb::Status s = store.get_tags(lookup, &json);
                     if (s.ok()) {
 
                         //S is not OK for the most part;
@@ -232,6 +205,5 @@ int main(int argc, char* argv[]) {
             //TODO what happens if there is no history? does this still get written?
         }
     }
-    delete db;
     std::cerr << "\rProcessed: " << feature_count << " features successfully, with " << error_count << " errors."<<std::endl;
 }
