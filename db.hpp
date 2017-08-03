@@ -13,7 +13,10 @@
 #include <rocksdb/filter_policy.h>
 #include "rocksdb/cache.h"
 
-const std::string make_lookup(const int osm_id, const int type, const int version){
+#include <osmium/osm/types.hpp>
+
+
+const std::string make_lookup(const osmium::object_id_type osm_id, const int type, const int version){
   return std::to_string(osm_id) + "!" + std::to_string(version) + "!" + std::to_string(type);
 }
 
@@ -28,10 +31,15 @@ public:
     TagStore(const std::string index_dir) {
         rocksdb::Options options;
         options.create_if_missing = true;
-        options.allow_mmap_writes = true;
-
+//        options.allow_mmap_writes = true;
+//        options.max_open_files = -1;
+        
         rocksdb::BlockBasedTableOptions table_opts;
         table_opts.filter_policy = std::shared_ptr<const rocksdb::FilterPolicy>(rocksdb::NewBloomFilterPolicy(10));
+        
+//        table_opts.index_type = rocksdb::BlockBasedTableOptions::kHashSearch;
+//        table_opts.block_size = 4 * 1024;
+        
         options.table_factory.reset(NewBlockBasedTableFactory(table_opts));
 
         rocksdb::DB::Open(options, index_dir, &m_db);

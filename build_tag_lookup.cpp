@@ -23,7 +23,7 @@ class TagStoreHandler : public osmium::handler::Handler {
 
 public:
     TagStoreHandler(TagStore* store) : m_store(store) {}
-    int node_count = 0;
+    long node_count = 0;
     int way_count = 0;
     int rel_count = 0;
     void node(const osmium::Node& node) {
@@ -31,8 +31,8 @@ public:
         const auto lookup = make_lookup(node.id(), 1, node.version());
         m_store->store_tags(lookup, node);
         //Status update?
-        if ( node_count % 10000 == 0){
-            std::cerr << "\rProcessed: " << node_count/1000 << " K nodes";
+        if ( node_count % 1000000 == 0){
+            std::cerr << "\rProcessed: " << node_count/1000000 << " M nodes";
         }
     }
 
