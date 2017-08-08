@@ -3,27 +3,29 @@
 #  Single example osmium-contrib CMakeLists.txt
 #
 #----------------------------------------------------------------------
-project(minjur)
+project(osm-tag-history)
+cmake_minimum_required(VERSION 2.8.5)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-cmake_minimum_required(VERSION 2.8.5)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-
-find_package(Boost REQUIRED)
-include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-
-find_package(Osmium REQUIRED COMPONENTS io)
-include_directories(SYSTEM ${OSMIUM_INCLUDE_DIRS})
-
-find_package(RocksDB REQUIRED)
-include_directories(SYSTEM ${ROCKSDB_INCLUDE_DIRS})
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -std=c++11")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
+set(MASON_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/.mason/mason)
+include(${CMAKE_CURRENT_SOURCE_DIR}/.mason/mason.cmake)
 
-include(common)
+mason_use(libosmium VERSION 2.12.2 HEADER_ONLY)
+include_directories(${MASON_PACKAGE_libosmium_INCLUDE_DIRS})
+set(OSMIUM_INCLUDE_DIRS ${MASON_PACKAGE_libosmium_INCLUDE_DIRS})
+
+mason_use(boost VERSION 1.63.0 HEADER_ONLY)
+include_directories(${MASON_PACKAGE_boost_INCLUDE_DIRS})
+set(BOOST_INCLUDE_DIRS ${MASON_PACKAGE_boost_INCLUDE_DIRS})
+
+mason_use(rocksdb VERSION 4.13)
+include_directories(${MASON_PACKAGE_rocksdb_INCLUDE_DIRS})
+set(ROCKSDB_INCLUDE_DIRS ${MASON_PACKAGE_rocksdb_INCLUDE_DIRS})
 
 #----------------------------------------------------------------------
 
