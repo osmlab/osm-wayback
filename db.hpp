@@ -16,8 +16,10 @@
 #include <osmium/osm/types.hpp>
 #include <osmium/visitor.hpp>
 
-const std::string make_lookup(const int osm_id, const int type, const int version){
-  return std::to_string(osm_id) + "!" + std::to_string(version) + "!" + std::to_string(type);
+#include <chrono>
+
+const std::string make_lookup(const int osm_id, const int version){
+  return std::to_string(osm_id) + "!" + std::to_string(version);
 }
 
 class TagStore {
@@ -40,22 +42,25 @@ public:
     }
 
     TagStore(const std::string index_dir, const bool create) {
-        rocksdb::Options options;
-        options.error_if_exists = true;
-        options.allow_mmap_writes = true;
+        rocksdb::Options db_options;
+        db_options.allow_mmap_writes = false;
+        db_options.max_background_flushes = 4;
+        db_options.PrepareForBulkLoad();
 
         m_write_options = rocksdb::WriteOptions();
         m_write_options.sync = false;
 
-        rocksdb::BlockBasedTableOptions table_opts;
-        table_opts.filter_policy = std::shared_ptr<const rocksdb::FilterPolicy>(rocksdb::NewBloomFilterPolicy(10));
-        options.table_factory.reset(NewBlockBasedTableFactory(table_opts));
+        rocksdb::BlockBasedTableOptions table_options;
+        table_options.filter_policy = std::shared_ptr<const rocksdb::FilterPolicy>(rocksdb::NewBloomFilterPolicy(10));
+        db_options.table_factory.reset(NewBlockBasedTableFactory(table_options));
 
         rocksdb::Status s;
 
         if(create) {
-            options.create_if_missing = true;
-            s = rocksdb::DB::Open(options, index_dir, &m_db);
+            // always clear out the previous tag index first
+            rocksdb::DestroyDB(index_dir, db_options);
+            db_options.create_if_missing = true;
+            s = rocksdb::DB::Open(db_options, index_dir, &m_db);
             s = m_db->CreateColumnFamily(rocksdb::ColumnFamilyOptions(), "nodes", &m_cf_nodes);
             assert(s.ok());
             s = m_db->CreateColumnFamily(rocksdb::ColumnFamilyOptions(), "ways", &m_cf_ways);
@@ -63,33 +68,32 @@ public:
             s = m_db->CreateColumnFamily(rocksdb::ColumnFamilyOptions(), "relations", &m_cf_relations);
             assert(s.ok());
         } else {
-                options.error_if_exists = false;
-                options.create_if_missing = false;
-              std::cout << "Open without create";
+            db_options.error_if_exists = false;
+            db_options.create_if_missing = false;
+            std::cout << "Open without create";
             // open DB with two column families
-              std::vector<rocksdb::ColumnFamilyDescriptor> column_families;
-              // have to open default column family
-              column_families.push_back(rocksdb::ColumnFamilyDescriptor(
-                  rocksdb::kDefaultColumnFamilyName, rocksdb::ColumnFamilyOptions()));
-              // open the new one, too
-              column_families.push_back(rocksdb::ColumnFamilyDescriptor( "nodes", rocksdb::ColumnFamilyOptions()));
-              column_families.push_back(rocksdb::ColumnFamilyDescriptor( "ways", rocksdb::ColumnFamilyOptions()));
-              column_families.push_back(rocksdb::ColumnFamilyDescriptor( "relations", rocksdb::ColumnFamilyOptions()));
+            std::vector<rocksdb::ColumnFamilyDescriptor> column_families;
+            // have to open default column family
+            column_families.push_back(rocksdb::ColumnFamilyDescriptor(
+            rocksdb::kDefaultColumnFamilyName, rocksdb::ColumnFamilyOptions()));
+            // open the new one, too
+            column_families.push_back(rocksdb::ColumnFamilyDescriptor( "nodes", rocksdb::ColumnFamilyOptions()));
+            column_families.push_back(rocksdb::ColumnFamilyDescriptor( "ways", rocksdb::ColumnFamilyOptions()));
+            column_families.push_back(rocksdb::ColumnFamilyDescriptor( "relations", rocksdb::ColumnFamilyOptions()));
 
-              std::vector<rocksdb::ColumnFamilyHandle*> handles;
+            std::vector<rocksdb::ColumnFamilyHandle*> handles;
 
-              s = rocksdb::DB::Open(options, index_dir, column_families, &handles, &m_db);
-              assert(s.ok());
+            s = rocksdb::DB::Open(db_options, index_dir, column_families, &handles, &m_db);
+            assert(s.ok());
 
-              m_cf_nodes = handles[1];
-              m_cf_ways = handles[2];
-              m_cf_relations = handles[3];
+            m_cf_nodes = handles[1];
+            m_cf_ways = handles[2];
+            m_cf_relations = handles[3];
         }
-
     }
 
     rocksdb::Status get_tags(const long int osm_id, const int osm_type, const int version, std::string* json_value) {
-        const auto lookup = make_lookup(osm_id, osm_type, version);
+        const auto lookup = make_lookup(osm_id, version);
         if(osm_type== 0) {
             return m_db->Get(rocksdb::ReadOptions(), m_cf_nodes, lookup, json_value);
         } else if (osm_type == 1) {
@@ -100,24 +104,22 @@ public:
     }
 
     void store_tags(const osmium::Way& way) {
-        const auto lookup = make_lookup(way.id(), 2, way.version());
-        store_tags(lookup, way, m_cf_ways);
+        store_tags(way, m_cf_ways);
         stored_ways_count++;
     }
 
     void store_tags(const osmium::Node& node) {
-        const auto lookup = make_lookup(node.id(), 1, node.version());
-        store_tags(lookup, node, m_cf_nodes);
+        store_tags(node, m_cf_nodes);
         stored_nodes_count++;
     }
 
     void store_tags(const osmium::Relation& relation) {
-        const auto lookup = make_lookup(relation.id(), 3, relation.version());
-        store_tags(lookup, relation, m_cf_relations);
+        store_tags(relation, m_cf_relations);
         stored_relations_count++;
     }
 
-    void store_tags(const std::string lookup, const osmium::OSMObject& object, rocksdb::ColumnFamilyHandle* cf) {
+    void store_tags(const osmium::OSMObject& object, rocksdb::ColumnFamilyHandle* cf) {
+        const auto lookup = make_lookup(object.id(), object.version());
         if (object.tags().empty()) {
             empty_objects_count++;
             return;
@@ -155,5 +157,28 @@ public:
         doc.Accept(writer);
 
         rocksdb::Status stat = m_db->Put(m_write_options, cf, lookup, buffer.GetString());
+    }
+
+    void m_flush_family(const std::string type, rocksdb::ColumnFamilyHandle* cf) {
+        auto start = std::chrono::steady_clock::now();
+        std::cerr << "Flushing " << type << std::endl;
+        m_db->Flush(rocksdb::FlushOptions{}, cf);
+        auto end = std::chrono::steady_clock::now();
+        auto diff = end - start;
+        std::cerr << "Flushed " << type << " in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+
+
+        start = std::chrono::steady_clock::now();
+        std::cerr << "Compacting " << type << std::endl;
+        m_db->CompactRange(rocksdb::CompactRangeOptions{}, cf, nullptr, nullptr);
+        end = std::chrono::steady_clock::now();
+        diff = end - start;
+        std::cerr << "Compacted " << type << " in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+    }
+
+    void flush() {
+        m_flush_family("nodes", m_cf_nodes);
+        m_flush_family("ways", m_cf_ways);
+        m_flush_family("relations", m_cf_relations);
     }
 };

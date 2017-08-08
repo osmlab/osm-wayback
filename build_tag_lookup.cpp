@@ -92,5 +92,6 @@ int main(int argc, char* argv[]) {
 
     stop_progress = true;
     t_progress.join();
+    store.flush();
     //TODO: Put status updates down here and not in the middle of processing?
 }
