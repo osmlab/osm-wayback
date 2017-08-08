@@ -73,9 +73,8 @@ void write_with_history_tags(TagStore* store, const std::string line) {
         int hist_it_idx = 0; //Can't trust the versions because they may not be contiguous
 
         for(int v = 1; v < version+1; v++) { //Going up to current version so that history is complete
-            const auto lookup = make_lookup(osm_id, osmType, v);
             std::string json;
-            rocksdb::Status s = store->get_tags(lookup, &json);
+            rocksdb::Status s = store->get_tags(osm_id, osmType, v, &json);
             if (s.ok()) {
 
                 //S is not OK for the most part;
@@ -203,7 +202,8 @@ int main(int argc, char* argv[]) {
     int error_count = 0;
 
     std::string index_dir = argv[1];
-    TagStore store(index_dir);
+std::cout << "init tag dir" << std::endl;
+    TagStore store(index_dir, false);
 
     rapidjson::Document doc;
     for (std::string line; std::getline(std::cin, line);) {
