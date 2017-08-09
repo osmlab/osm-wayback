@@ -10,6 +10,7 @@
 #include <cstring>  // for std::strncmp
 #include <iostream> // for std::cout, std::cerr
 #include <sstream>
+#include <chrono>
 
 #include <osmium/io/any_input.hpp>
 #include <osmium/osm/types.hpp>
@@ -28,43 +29,49 @@ public:
     int rel_count = 0;
     void node(const osmium::Node& node) {
         node_count += 1;
-        const auto lookup = make_lookup(node.id(), 1, node.version());
-        m_store->store_tags(lookup, node);
-        //Status update?
-        if ( node_count % 1000000 == 0){
-            std::cerr << "\rProcessed: " << node_count/1000000 << " M nodes";
-        }
+        m_store->store_tags(node);
     }
 
     void way(const osmium::Way& way) {
-        const auto lookup = make_lookup(way.id(), 2, way.version());
-        m_store->store_tags(lookup, way);
-
-        if ( way_count % 10000 == 0)
-        {
-          if (way_count == 0){
-            std::cerr << "\rProcessed: " << node_count << " nodes" << std::endl;
-          }
-            std::cerr << "\rProcessed: " << way_count/1000 << " K ways                   ";
-        }
+        m_store->store_tags(way);
         way_count++;
     }
 
     void relation(const osmium::Relation& relation) {
-        const auto lookup = make_lookup(relation.id(), 3, relation.version());
-        m_store->store_tags(lookup, relation);
-
-        if ( rel_count % 10000 == 0)
-        {
-          if (rel_count == 0)
-          {
-            std::cerr << "\rProcessed: " << way_count << " ways" << std::endl;
-          }
-            std::cerr << "\rProcessed: " << rel_count/1000 << " K relations                   ";
-        }
+        m_store->store_tags(relation);
         rel_count++;
     }
 };
+
+std::atomic_bool stop_progress{false};
+
+void report_progress(const TagStore* store) {
+    unsigned long last_nodes_count{0};
+    unsigned long last_ways_count{0};
+    unsigned long last_relations_count{0};
+    auto start = std::chrono::steady_clock::now();
+
+    while(true) {
+        if(stop_progress) {
+            auto end = std::chrono::steady_clock::now();
+            auto diff = end - start;
+
+            std::cerr << "Processed " << last_nodes_count << " nodes, " << last_ways_count << " ways, " << last_relations_count << " relations in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+            break;
+        }
+
+        auto diff_nodes_count = store->stored_nodes_count - last_nodes_count;
+        auto diff_ways_count = store->stored_ways_count - last_ways_count;
+        auto diff_relations_count = store->stored_relations_count - last_relations_count;
+
+        std::cerr << "Processing " << diff_nodes_count << " nodes/s, " << diff_ways_count << " ways/s, " << diff_relations_count << " relations/s" << std::endl;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        last_nodes_count += diff_nodes_count;
+        last_ways_count += diff_ways_count;
+        last_relations_count += diff_relations_count;
+    }
+}
 
 int main(int argc, char* argv[]) {
     if (argc != 3) {
@@ -75,11 +82,15 @@ int main(int argc, char* argv[]) {
     std::string index_dir = argv[1];
     std::string osm_filename = argv[2];
 
-    TagStore store(index_dir);
+    TagStore store(index_dir, true);
     TagStoreHandler tag_handler(&store);
+
+    std::thread t_progress(report_progress, &store);
 
     osmium::io::Reader reader{osm_filename, osmium::osm_entity_bits::node | osmium::osm_entity_bits::way | osmium::osm_entity_bits::relation};
     osmium::apply(reader, tag_handler);
 
-    //TODO: Put status updates down here and not in the middle of processing?
+    stop_progress = true;
+    t_progress.join();
+    store.flush();
 }
