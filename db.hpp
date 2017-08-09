@@ -47,6 +47,8 @@ public:
         db_options.max_background_flushes = 4;
         db_options.PrepareForBulkLoad();
 
+        db_options.target_file_size_base = 512 * 1024 * 1024;
+
         m_write_options = rocksdb::WriteOptions();
         m_write_options.sync = false;
 
