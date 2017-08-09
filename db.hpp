@@ -18,7 +18,7 @@
 
 #include <chrono>
 
-const std::string make_lookup(const long long int osm_id, const int version){
+const std::string make_lookup(const int64_t osm_id, const int version){
   return std::to_string(osm_id) + "!" + std::to_string(version);
 }
 
@@ -91,7 +91,7 @@ public:
             m_cf_relations = handles[3];
         }
     }
-  rocksdb::Status get_tags(const long int osm_id, const int osm_type, const int version, std::string* json_value) {
+  rocksdb::Status get_tags(const int64_t osm_id, const int osm_type, const int version, std::string* json_value) {
         const auto lookup = make_lookup(osm_id, version);
         if(osm_type== 0) {
             return m_db->Get(rocksdb::ReadOptions(), m_cf_nodes, lookup, json_value);
@@ -162,19 +162,19 @@ public:
 
     void m_flush_family(const std::string type, rocksdb::ColumnFamilyHandle* cf) {
         auto start = std::chrono::steady_clock::now();
-        std::cerr << "Flushing " << type << std::endl;
+        std::cerr << "Flushing " << type;
         m_db->Flush(rocksdb::FlushOptions{}, cf);
         auto end = std::chrono::steady_clock::now();
         auto diff = end - start;
-        std::cerr << "Flushed " << type << " in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+        std::cerr << "\rFlushed " << type << " in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
 
 
         start = std::chrono::steady_clock::now();
-        std::cerr << "Compacting " << type << std::endl;
+        std::cerr << "Compacting " << type;
         m_db->CompactRange(rocksdb::CompactRangeOptions{}, cf, nullptr, nullptr);
         end = std::chrono::steady_clock::now();
         diff = end - start;
-        std::cerr << "Compacted " << type << " in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+        std::cerr << "\rCompacted " << type << " in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
     }
 
     void flush() {

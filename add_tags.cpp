@@ -72,8 +72,8 @@ void write_with_history_tags(TagStore* store, const std::string line) {
         rapidjson::Document stored_doc;
 
         int osmType = 1;
-        if(type == "node") osmType = 1;
-        if(type == "way") osmType = 2;
+        if(type == "node")     osmType = 1;
+        if(type == "way")      osmType = 2;
         if(type == "relation") osmType = 3;
 
         TagHistoryArray tag_history;
@@ -84,8 +84,10 @@ void write_with_history_tags(TagStore* store, const std::string line) {
             for(int v = 1; v <= version; v++) { //Going up to current version so that history is complete
                 std::string json;
                 rocksdb::Status s = store->get_tags(osm_id, osmType, v, &json);
-              
+
                 if (s.ok()) {
+
+                  std::cerr << "HERE" << std::endl;
 
                     if(stored_doc.Parse<0>(json.c_str()).HasParseError()) {
                       dbrocks_parse_error++;
@@ -213,7 +215,7 @@ int main(int argc, char* argv[]) {
     int error_count = 0;
 
     std::string index_dir = argv[1];
-std::cout << "init tag dir" << std::endl;
+    std::cout << "init tag dir" << std::endl;
     TagStore store(index_dir, false);
 
     rapidjson::Document doc;
