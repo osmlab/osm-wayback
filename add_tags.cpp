@@ -87,8 +87,6 @@ void write_with_history_tags(TagStore* store, const std::string line) {
 
                 if (s.ok()) {
 
-                  std::cerr << "HERE" << std::endl;
-
                     if(stored_doc.Parse<0>(json.c_str()).HasParseError()) {
                       dbrocks_parse_error++;
                       continue;

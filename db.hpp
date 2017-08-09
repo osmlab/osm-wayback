@@ -93,9 +93,10 @@ public:
     }
   rocksdb::Status get_tags(const int64_t osm_id, const int osm_type, const int version, std::string* json_value) {
         const auto lookup = make_lookup(osm_id, version);
-        if(osm_type== 0) {
+
+        if(osm_type== 1) {
             return m_db->Get(rocksdb::ReadOptions(), m_cf_nodes, lookup, json_value);
-        } else if (osm_type == 1) {
+        } else if (osm_type == 2) {
             return m_db->Get(rocksdb::ReadOptions(), m_cf_ways, lookup, json_value);
         } else {
             return m_db->Get(rocksdb::ReadOptions(), m_cf_relations, lookup, json_value);
