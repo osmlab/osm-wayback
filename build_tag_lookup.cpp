@@ -24,7 +24,7 @@ class TagStoreHandler : public osmium::handler::Handler {
 
 public:
     TagStoreHandler(TagStore* store) : m_store(store) {}
-    int node_count = 0;
+    long node_count = 0;
     int way_count = 0;
     int rel_count = 0;
     void node(const osmium::Node& node) {
@@ -93,5 +93,4 @@ int main(int argc, char* argv[]) {
     stop_progress = true;
     t_progress.join();
     store.flush();
-    //TODO: Put status updates down here and not in the middle of processing?
 }

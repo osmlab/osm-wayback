@@ -25,3 +25,9 @@ Pass a stream of GeoJSON features as produced by [minjur](https://github.com/map
 ```
 cat features.geojson | add_tags INDEX_DIR
 ```
+
+
+## To consider if running against the planet: 
+
+As of August, 2017:
+ - `minjur --polygons planet-latest.osm.pbf > planet.geojson` => planet.geojson ~250 GB with 545 Million features.
