@@ -5,13 +5,15 @@ dist: trusty
 matrix:
   fast_finish: true
   include:
+    - os: osx
+      compiler: clang
+      env: CCOMPILER='clang' CXXCOMPILER='clang++'
     - os: linux
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
           packages: ['g++-7', 'cmake', 'realpath', 'libbz2-dev', 'zlib1g-dev', 'libexpat1-dev', 'libboost-all-dev']
       env: CCOMPILER='gcc-7' CXXCOMPILER='g++-7'
-
     - os: linux
       addons:
         apt:
