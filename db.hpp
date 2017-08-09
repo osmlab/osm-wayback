@@ -11,7 +11,8 @@
 #include "rocksdb/db.h"
 #include <rocksdb/table.h>
 #include <rocksdb/filter_policy.h>
-#include "rocksdb/cache.h"
+#include <rocksdb/cache.h>
+#include <rocksdb/write_batch.h>
 
 #include <osmium/osm/types.hpp>
 #include <osmium/visitor.hpp>
@@ -28,6 +29,40 @@ class TagStore {
     rocksdb::ColumnFamilyHandle* m_cf_nodes;
     rocksdb::ColumnFamilyHandle* m_cf_relations;
     rocksdb::WriteOptions m_write_options;
+
+    rocksdb::WriteBatch m_buffer_batch;
+
+    void flush_family(const std::string type, rocksdb::ColumnFamilyHandle* cf) {
+        const auto start = std::chrono::steady_clock::now();
+        std::cerr << "Flushing " << type << std::endl;
+        m_db->Flush(rocksdb::FlushOptions{}, cf);
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        std::cerr << "Flushed " << type << " in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+    }
+
+    void compact_family(const std::string type, rocksdb::ColumnFamilyHandle* cf) {
+        const auto start = std::chrono::steady_clock::now();
+        std::cerr << "Compacting " << type << std::endl;
+        m_db->CompactRange(rocksdb::CompactRangeOptions{}, cf, nullptr, nullptr);
+        const auto end = std::chrono::steady_clock::now();
+        const auto diff = end - start;
+        std::cerr << "Compacted " << type << " in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+    }
+
+    void report_count_stats() {
+        uint64_t node_keys{0};
+        m_db->GetIntProperty(m_cf_nodes, "rocksdb.estimate-num-keys", &node_keys);
+        std::cerr << "Stored ~" << node_keys << "/" << stored_nodes_count << " nodes" << std::endl;
+
+        uint64_t way_keys{0};
+        m_db->GetIntProperty(m_cf_ways, "rocksdb.estimate-num-keys", &way_keys);
+        std::cerr << "Stored ~" << way_keys << "/" << stored_ways_count << " ways" << std::endl;
+
+        uint64_t relation_keys{0};
+        m_db->GetIntProperty(m_cf_relations, "rocksdb.estimate-num-keys", &relation_keys);
+        std::cerr << "Stored ~" << relation_keys  << "/" << stored_relations_count << " relations" << std::endl;
+    }
 
 public:
     unsigned long empty_objects_count{0};
@@ -48,6 +83,7 @@ public:
         db_options.PrepareForBulkLoad();
 
         m_write_options = rocksdb::WriteOptions();
+        m_write_options.disableWAL = true;
         m_write_options.sync = false;
 
         rocksdb::BlockBasedTableOptions table_options;
@@ -104,25 +140,28 @@ public:
     }
 
     void store_tags(const osmium::Way& way) {
-        store_tags(way, m_cf_ways);
-        stored_ways_count++;
+        if(store_tags(way, m_cf_ways)) {
+            stored_ways_count++;
+        }
     }
 
     void store_tags(const osmium::Node& node) {
-        store_tags(node, m_cf_nodes);
-        stored_nodes_count++;
+        if(store_tags(node, m_cf_nodes)) {
+            stored_nodes_count++;
+        }
     }
 
     void store_tags(const osmium::Relation& relation) {
-        store_tags(relation, m_cf_relations);
-        stored_relations_count++;
+        if(store_tags(relation, m_cf_relations)) {
+            stored_relations_count++;
+        }
     }
 
-    void store_tags(const osmium::OSMObject& object, rocksdb::ColumnFamilyHandle* cf) {
+    bool store_tags(const osmium::OSMObject& object, rocksdb::ColumnFamilyHandle* cf) {
         const auto lookup = make_lookup(object.id(), object.version());
         if (object.tags().empty()) {
             empty_objects_count++;
-            return;
+            return false;
         }
 
         rapidjson::Document doc;
@@ -156,29 +195,40 @@ public:
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
         doc.Accept(writer);
 
-        rocksdb::Status stat = m_db->Put(m_write_options, cf, lookup, buffer.GetString());
-    }
+        rocksdb::Status stat = m_buffer_batch.Put(cf, lookup, buffer.GetString());
 
-    void m_flush_family(const std::string type, rocksdb::ColumnFamilyHandle* cf) {
-        auto start = std::chrono::steady_clock::now();
-        std::cerr << "Flushing " << type << std::endl;
-        m_db->Flush(rocksdb::FlushOptions{}, cf);
-        auto end = std::chrono::steady_clock::now();
-        auto diff = end - start;
-        std::cerr << "Flushed " << type << " in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+        if (m_buffer_batch.Count() > 500) {
+            m_db->Write(m_write_options, &m_buffer_batch);
+            m_buffer_batch.Clear();
+        }
 
-
-        start = std::chrono::steady_clock::now();
-        std::cerr << "Compacting " << type << std::endl;
-        m_db->CompactRange(rocksdb::CompactRangeOptions{}, cf, nullptr, nullptr);
-        end = std::chrono::steady_clock::now();
-        diff = end - start;
-        std::cerr << "Compacted " << type << " in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+        if (stored_nodes_count != 0 && (stored_nodes_count % 2000000) == 0) {
+            flush_family("nodes", m_cf_nodes);
+            report_count_stats();
+        }
+        if (stored_ways_count != 0 && (stored_ways_count % 1000000) == 0) {
+            flush_family("ways", m_cf_ways);
+            report_count_stats();
+        }
+        if (stored_relations_count != 0 && (stored_relations_count % 1000000) == 0) {
+            flush_family("relations", m_cf_relations);
+            report_count_stats();
+        }
+        return true;
     }
 
     void flush() {
-        m_flush_family("nodes", m_cf_nodes);
-        m_flush_family("ways", m_cf_ways);
-        m_flush_family("relations", m_cf_relations);
+        m_db->Write(m_write_options, &m_buffer_batch);
+        m_buffer_batch.Clear();
+
+        flush_family("nodes", m_cf_nodes);
+        flush_family("ways", m_cf_ways);
+        flush_family("relations", m_cf_relations);
+
+        compact_family("nodes", m_cf_nodes);
+        compact_family("ways", m_cf_ways);
+        compact_family("relations", m_cf_relations);
+
+        report_count_stats();
     }
 };
