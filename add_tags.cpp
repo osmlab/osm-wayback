@@ -210,7 +210,6 @@ int main(int argc, char* argv[]) {
     }
 
     int feature_count = 0;
-    int error_count = 0;
 
     std::string index_dir = argv[1];
     std::cout << "init tag dir" << std::endl;

@@ -8,24 +8,26 @@ matrix:
     - os: osx
       compiler: clang
       env: CCOMPILER='clang' CXXCOMPILER='clang++'
+
     - os: linux
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-7', 'cmake', 'realpath', 'libbz2-dev', 'zlib1g-dev', 'libexpat1-dev', 'libboost-all-dev']
+          packages: ['g++-7', 'cmake', 'realpath']
       env: CCOMPILER='gcc-7' CXXCOMPILER='g++-7'
+
     - os: linux
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-6', 'cmake', 'realpath', 'libbz2-dev', 'zlib1g-dev', 'libexpat1-dev', 'libboost-all-dev']
+          packages: ['g++-6', 'cmake', 'realpath']
       env: CCOMPILER='gcc-6' CXXCOMPILER='g++-6'
 
     - os: linux
       addons:
         apt:
           sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-5', 'cmake', 'realpath', 'libbz2-dev', 'zlib1g-dev', 'libexpat1-dev', 'libboost-all-dev']
+          packages: ['g++-5', 'cmake', 'realpath']
       env: CCOMPILER='gcc-5' CXXCOMPILER='g++-5'
 
     # Waiting on Travis whitelisting clang-4.0
