@@ -40,3 +40,6 @@ build/
 #Indexes and Testing and Such
 test/INDEXES/*
 test/history-geojson/*
+test/geojson/nepal.geojsonl
+nepal.osh.pbf
+*.tar

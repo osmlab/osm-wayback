@@ -19,7 +19,7 @@
 
 #include <chrono>
 
-const std::string make_lookup(const int osm_id, const int version){
+const std::string make_lookup(const int64_t osm_id, const int version){
   return std::to_string(osm_id) + "!" + std::to_string(version);
 }
 
@@ -82,6 +82,8 @@ public:
         db_options.max_background_flushes = 4;
         db_options.PrepareForBulkLoad();
 
+        db_options.target_file_size_base = 512 * 1024 * 1024;
+
         m_write_options = rocksdb::WriteOptions();
         m_write_options.disableWAL = true;
         m_write_options.sync = false;
@@ -127,12 +129,12 @@ public:
             m_cf_relations = handles[3];
         }
     }
-
-    rocksdb::Status get_tags(const long int osm_id, const int osm_type, const int version, std::string* json_value) {
+  rocksdb::Status get_tags(const int64_t osm_id, const int osm_type, const int version, std::string* json_value) {
         const auto lookup = make_lookup(osm_id, version);
-        if(osm_type== 0) {
+
+        if(osm_type== 1) {
             return m_db->Get(rocksdb::ReadOptions(), m_cf_nodes, lookup, json_value);
-        } else if (osm_type == 1) {
+        } else if (osm_type == 2) {
             return m_db->Get(rocksdb::ReadOptions(), m_cf_ways, lookup, json_value);
         } else {
             return m_db->Get(rocksdb::ReadOptions(), m_cf_relations, lookup, json_value);
@@ -170,7 +172,9 @@ public:
         rapidjson::Document::AllocatorType& a = doc.GetAllocator();
 
         doc.AddMember("@timestamp", object.timestamp().to_iso(), a); //ISO is helpful for debugging, but we should leave it
-        doc.AddMember("@deleted", object.deleted(), a);
+        if (object.deleted()){
+          doc.AddMember("@deleted", object.deleted(), a);
+        }
         doc.AddMember("@visible", object.visible(), a);
         doc.AddMember("@user", std::string{object.user()}, a);
         doc.AddMember("@uid", object.uid(), a);

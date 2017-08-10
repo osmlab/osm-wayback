@@ -24,7 +24,7 @@ class TagStoreHandler : public osmium::handler::Handler {
 
 public:
     TagStoreHandler(TagStore* store) : m_store(store) {}
-    int node_count = 0;
+    long node_count = 0;
     int way_count = 0;
     int rel_count = 0;
     void node(const osmium::Node& node) {
@@ -56,7 +56,7 @@ void report_progress(const TagStore* store) {
             auto end = std::chrono::steady_clock::now();
             auto diff = end - start;
 
-            std::cerr << "Processed " << last_nodes_count << " nodes, " << last_ways_count << " ways, " << last_relations_count << " relations in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
+            std::cerr << "\nProcessed " << store->stored_nodes_count << " nodes, " << store->stored_ways_count << " ways, " << store->stored_relations_count << " relations in " << std::chrono::duration <double, std::milli> (diff).count() << " ms" << std::endl;
             break;
         }
 
@@ -64,7 +64,10 @@ void report_progress(const TagStore* store) {
         auto diff_ways_count = store->stored_ways_count - last_ways_count;
         auto diff_relations_count = store->stored_relations_count - last_relations_count;
 
-        std::cerr << "Processing " << diff_nodes_count << " nodes/s, " << diff_ways_count << " ways/s, " << diff_relations_count << " relations/s" << std::endl;
+        std::cerr << "\rProcessed " << store->stored_nodes_count / 1000000 << "M nodes @ " << diff_nodes_count << " nodes/s | " <<
+          store->stored_ways_count /1000 << "K ways @ " << diff_ways_count << " ways/s | " <<
+          store->stored_relations_count << " rels @ " << diff_relations_count << "   ";
+
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         last_nodes_count += diff_nodes_count;
@@ -93,5 +96,4 @@ int main(int argc, char* argv[]) {
     stop_progress = true;
     t_progress.join();
     store.flush();
-    //TODO: Put status updates down here and not in the middle of processing?
 }
