@@ -46,7 +46,7 @@ mason_use(rocksdb VERSION 5.4.6)
 include_directories(SYSTEM ${MASON_PACKAGE_rocksdb_INCLUDE_DIRS})
 set(ROCKSDB_LIBRARIES ${MASON_PACKAGE_rocksdb_STATIC_LIBS})
 
-set(ALL_LIBRARIES ${EXPAT_LIBRARIES} ${ROCKSDB_LIBRARIES} ${ZLIB_LIBRARY} ${BZIP2_LIBRARIES} )
+set(ALL_LIBRARIES ${CMAKE_THREAD_LIBS_INIT} ${EXPAT_LIBRARIES} ${ROCKSDB_LIBRARIES} ${ZLIB_LIBRARY} ${BZIP2_LIBRARIES} )
 #----------------------------------------------------------------------
 add_executable(build_tag_lookup build_tag_lookup.cpp)
 add_executable(add_tags add_tags.cpp)
