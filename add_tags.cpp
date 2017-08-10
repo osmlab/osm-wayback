@@ -27,10 +27,10 @@ bool map_compare (Map const &lhs, Map const &rhs) {
                       rhs.begin());
 }
 
-const int osm_type(const std::string type) {
-    if(type == "node") return 1;
-    if(type == "way") return 2;
-    if(type == "relation") return 3;
+int osm_type(const std::string type) {
+    if (type == "node") return 1;
+    if (type == "way") return 2;
+    if (type == "relation") return 3;
     return 1;
 }
 

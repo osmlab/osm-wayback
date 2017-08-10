@@ -3,6 +3,13 @@ Stores a RocksDB with OSM ID &lt;-> tag history and augments GeoJSON files with 
 
 ## Build
 
+
+Install mason
+
+```
+git clone --depth 1 --branch v0.14.1 https://github.com/mapbox/mason.git .mason
+```
+
 If you need to source compile then you'll need [`libosmium`](https://github.com/osmcode/libosmium) and [`rocksdb`](https://github.com/facebook/rocksdb/blob/master/INSTALL.md) headers available. Then you build the program with `cmake`:
 
 ```
