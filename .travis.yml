@@ -39,6 +39,6 @@ install:
   - git clone --depth 1 --branch v0.14.1 https://github.com/mapbox/mason.git .mason
   - mkdir build
   - pushd build
-  - cmake ..
+  - cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
   - cmake --build .
   - popd
