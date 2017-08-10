@@ -53,8 +53,6 @@ add_executable(add_tags add_tags.cpp)
 
 target_link_libraries(build_tag_lookup ${ALL_LIBRARIES})
 target_link_libraries(add_tags ${ALL_LIBRARIES})
-
-target_link_libraries(add_tags Threads::Threads)
 #-----------------------------------------------------------------------------
 #
 #  Optional "cppcheck" target that checks C++ code
