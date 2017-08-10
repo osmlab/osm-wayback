@@ -1,6 +1,7 @@
 # Prerequisites
 *.d
-
+.mason/
+mason_packages/
 build/
 
 # Compiled Object files
