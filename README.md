@@ -57,8 +57,9 @@ Similar to the standard OSM-QA tile, each of these standard OSM object propertie
 @timestamp
 @uid
 @user
-Additional Attributes
 ```
+
+### Additional Attributes
 #### 1. Tags
 
 Tags should be removed from the objects and only the diffs recorded. While this will require iterating over the tags in history to reconstruct them exactly per version, it has two worthy benefits: 1) Easily see when tags were added/changed/deleted and 2) limited duplication of data.
