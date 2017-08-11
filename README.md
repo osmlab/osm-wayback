@@ -37,7 +37,7 @@ The output is a stream of augmented GeoJSON features with an additional `@histor
 # Historical Feature Schema for TAGS
 Version 1 from [osm-analysis-collab](https://github.com/mapbox/osm-analysis-collab/issues/30); Propose moving this discussion to this repository, perhaps a `TagHistorySchema_v1.md` document to track development.
 
-OSM objects that have history will have an extra attribute prefixed with @, like the standard OSM properties from `minjur`. This @history object is an array of individual historical versions and is stored in the properties of the main GeoJSON Feature. The final object in the history array is the current version of the object. This allows tag changes to be easily tracked between all versions.
+OSM objects that have history will have an extra attribute prefixed with `@`, like the standard OSM properties from `minjur`. This @history object is an array of individual historical versions and is stored in the properties of the main GeoJSON Feature. The final object in the history array is the current version of the object. This allows tag changes to be easily tracked between all versions.
 ```
 "@history": [ 
   <history object version 1>,
