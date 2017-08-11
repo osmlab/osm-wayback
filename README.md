@@ -65,10 +65,10 @@ Tags should be removed from the objects and only the diffs recorded. While this 
 
 There are four possible outcomes when comparing two versions:
 
-Nothing is changed on the tags, the change was strictly geometrical. This is not possible with a WAY. A change to a way's geometry will not increment the version of the way.
-New Tags (new_tags): A user adds new tags to the object.
-Delete Tags (del_tags): Tags are removed from one version to the next.
-Modify Tags (mod_tags): The value of tag(s) are changed. Name expansion, for example: Elm St. --> Elm Street. In this case, we'll record both the previous value and the new value with this version so that the change can be easily referenced without looking at previous versions.
+1. **Nothing** is changed on the tags, the change was strictly geometrical. This is not possible with a WAY. A change to a way's geometry will not increment the version of the way.
+1. **New Tags** (new_tags): A user adds new tags to the object.
+1. **Delete Tags** (del_tags): Tags are removed from one version to the next.
+1. **Modify Tags** (mod_tags): The value of tag(s) are changed. Name expansion, for example: Elm St. --> Elm Street. In this case, we'll record both the previous value and the new value with this version so that the change can be easily referenced without looking at previous versions.
 ```
 "@new_tags" : { 
   "key1" : "value1", 
