@@ -1,5 +1,7 @@
-# osm-tag-history [![Build Status](https://travis-ci.org/mapbox/osm-tag-history.svg?branch=master)](https://travis-ci.org/mapbox/osm-tag-history)
+# osm-wayback [![Build Status](https://travis-ci.org/mapbox/osm-tag-history.svg?branch=master)](https://travis-ci.org/mapbox/osm-tag-history)
 Stores a RocksDB with OSM ID &lt;-> tag history and augments GeoJSON files with the history of tag changes.
+
+:rocket: Final goal is to create historic geometries for each intermediate version of an OSM feature.
 
 ## Build
 
