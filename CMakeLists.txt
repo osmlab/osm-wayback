@@ -4,10 +4,15 @@
 #
 #----------------------------------------------------------------------
 cmake_minimum_required(VERSION 2.8.11)
-project(osm-tag-history)
+project(osm-wayback)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0 -Wall -Wextra -pedantic -std=c++11")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+ 
+if(NOT CMAKE_BUILD_TYPE)
+  message(STATUS "No build type specified, defaulting to Release")
+  set(CMAKE_BUILD_TYPE Release)
+endif()
 
 find_package(Threads REQUIRED)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
