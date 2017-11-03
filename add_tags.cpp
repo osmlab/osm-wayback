@@ -223,6 +223,12 @@ int main(int argc, char* argv[]) {
           std::cerr << "\rProcessed: " << (feature_count/1000) << " K features";
         }
     }
+
+    if(feature_count == 0) {
+        std::cerr << "No features processed" << std::endl;
+        std::exit(5);
+    }
+
     std::cerr << "\n"<< feature_count << " features processed, additional history values: " << history_count << std::endl;
     std::cerr << "\t" << lookup_fail << " (" << (lookup_fail / (lookup_fail + history_count)*100) << "%) \tLookup failures (specific history versions probably don't have any tags)"  << std::endl;
     std::cerr << "\t" << input_feature_parse_error <<  "\tInput feature parse failures"  << std::endl;
