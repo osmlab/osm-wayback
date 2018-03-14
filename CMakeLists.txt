@@ -3,6 +3,7 @@
 #  Single example osmium-contrib CMakeLists.txt
 #
 #----------------------------------------------------------------------
+
 cmake_minimum_required(VERSION 2.8.11)
 project(osm-wayback)
 
@@ -95,5 +96,3 @@ else()
     message(STATUS "Looking for iwyu_tool.py - not found")
     message(STATUS "  Make target 'iwyu' will not be available")
 endif()
-
-

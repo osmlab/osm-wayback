@@ -38,7 +38,7 @@ The output is a stream of augmented GeoJSON features with an additional `@histor
 ## Historical Feature Schema for TAGS
 OSM objects that have history will have an extra attribute prefixed with `@`. This @history object is an array of individual historical versions and is stored in the properties of the main GeoJSON Feature. The final object in the history array is the current version of the object. This allows tag changes to be easily tracked between all versions.
 ```
-"@history": [ 
+"@history": [
   <history object version 1>,
   <history object version 2>,
   ...
@@ -70,9 +70,9 @@ There are four possible outcomes when comparing two versions:
 1. **Delete Tags** (`del_tags`): Tags are removed from one version to the next.
 1. **Modify Tags** (`mod_tags`): The value of tag(s) are changed. Name expansion, for example: `Elm St.` --> `Elm Street`. In this case, we'll record both the previous value and the new value with this version so that the change can be easily referenced without looking at previous versions.
 ```
-"@new_tags" : { 
-  "key1" : "value1", 
-  "key2" : "value2" 
+"@new_tags" : {
+  "key1" : "value1",
+  "key2" : "value2"
 },
 "@del_tags": {
    "previous key 1" : "previous value 1",

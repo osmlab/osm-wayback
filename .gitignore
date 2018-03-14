@@ -4,6 +4,12 @@
 mason_packages/
 build/
 
+#Cmake File
+CMakeFiles/
+MakeFile
+
+.gitignore
+
 # Compiled Object files
 *.slo
 *.lo
@@ -33,10 +39,6 @@ build/
 *.exe
 *.out
 *.app
-
-#Stupid XCode
-*.xcodeproj/
-.gitignore
 
 #Indexes and Testing and Such
 test/INDEXES/*
