@@ -1,3 +1,15 @@
+/*
+
+  USAGE: cat <LINE-DELIMITED GEOJSON> add_tags <INDEX DIR>
+
+  Reads a stream of GeoJSON objects (line-delimited) and looks up the previous
+  versions of each object in the rocksdb INDEX.
+
+  It outputs a modified, enriched version of hte object with the `@history`
+  property if there is any history.
+
+*/
+
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -72,9 +84,10 @@ void write_with_history_tags(TagStore* store, const std::string line) {
         rapidjson::Document stored_doc;
 
         int osmType = 1;
+
         if(type == "node")     osmType = 1;
-        if(type == "way")      osmType = 2;
-        if(type == "relation") osmType = 3;
+        else if(type == "way")      osmType = 2;
+        else if(type == "relation") osmType = 3;
 
         TagHistoryArray tag_history;
 
