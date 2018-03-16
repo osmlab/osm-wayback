@@ -19,33 +19,33 @@
 
 #include "db.hpp"
 
-class TagStoreHandler : public osmium::handler::Handler {
-    TagStore* m_store;
+class ObjectStoreHandler : public osmium::handler::Handler {
+    ObjectStore* m_store;
 
 public:
-    TagStoreHandler(TagStore* store) : m_store(store) {}
+    ObjectStoreHandler(ObjectStore* store) : m_store(store) {}
     long node_count = 0;
     int way_count = 0;
     int rel_count = 0;
     void node(const osmium::Node& node) {
         node_count += 1;
-        m_store->store_tags(node);
+        m_store->store_node(node);
     }
 
     void way(const osmium::Way& way) {
-        m_store->store_tags(way);
+        m_store->store_way(way);
         way_count++;
     }
 
     void relation(const osmium::Relation& relation) {
-        m_store->store_tags(relation);
+        m_store->store_relation(relation);
         rel_count++;
     }
 };
 
 std::atomic_bool stop_progress{false};
 
-void report_progress(const TagStore* store) {
+void report_progress(const ObjectStore* store) {
     unsigned long last_nodes_count{0};
     unsigned long last_ways_count{0};
     unsigned long last_relations_count{0};
@@ -64,8 +64,8 @@ void report_progress(const TagStore* store) {
         auto diff_ways_count = store->stored_ways_count - last_ways_count;
         auto diff_relations_count = store->stored_relations_count - last_relations_count;
 
-        std::cerr << "\rProcessed " << store->stored_nodes_count / 1000000 << "M nodes @ " << diff_nodes_count << " nodes/s | " <<
-          store->stored_ways_count /1000 << "K ways @ " << diff_ways_count << " ways/s | " <<
+        std::cerr << "\rProcessed " << store->stored_nodes_count / 1000000 << "M nodes @ " << diff_nodes_count << " n/s | " <<
+          store->stored_ways_count /1000 << "K ways @ " << diff_ways_count << " w/s | " <<
           store->stored_relations_count << " rels @ " << diff_relations_count << "   ";
 
 
@@ -85,13 +85,13 @@ int main(int argc, char* argv[]) {
     std::string index_dir = argv[1];
     std::string osm_filename = argv[2];
 
-    TagStore store(index_dir, true);
-    TagStoreHandler tag_handler(&store);
+    ObjectStore store(index_dir, true);
+    ObjectStoreHandler osm_object_handler(&store);
 
     std::thread t_progress(report_progress, &store);
 
     osmium::io::Reader reader{osm_filename, osmium::osm_entity_bits::node | osmium::osm_entity_bits::way | osmium::osm_entity_bits::relation};
-    osmium::apply(reader, tag_handler);
+    osmium::apply(reader, osm_object_handler);
 
     stop_progress = true;
     t_progress.join();

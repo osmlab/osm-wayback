@@ -1,3 +1,15 @@
+/*
+
+  USAGE: cat <LINE-DELIMITED GEOJSON> add_tags <INDEX DIR>
+
+  Reads a stream of GeoJSON objects (line-delimited) and looks up the previous
+  versions of each object in the rocksdb INDEX.
+
+  It outputs a modified, enriched version of hte object with the `@history`
+  property if there is any history.
+
+*/
+
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -46,21 +58,26 @@ typedef std::map<std::string,std::string> StringStringMap;
 typedef std::map<std::string,std::string> VersionTags;
 typedef std::vector < std::map<std::string, std::string> > TagHistoryArray;
 
-void write_with_history_tags(TagStore* store, const std::string line) {
+void write_with_history_tags(ObjectStore* store, const std::string line) {
     rapidjson::Document geojson_doc;
+
     if(geojson_doc.Parse<0>(line.c_str()).HasParseError()) {
         std::cerr << "ERROR" << std::endl;
+        // std::cerr << line.c_str();
         input_feature_parse_error++;
         return;
     }
 
     if(!geojson_doc.HasMember("properties")){
-      no_properties++;
-      return;
+        no_properties++;
+        return;
     }
-    if(!geojson_doc["properties"]["@id"].IsInt64() || !geojson_doc["properties"]["@version"].IsInt() || !geojson_doc["properties"]["@type"].IsString()){
-      wrong_type_of_identity_properties++;
-      return;
+
+    if( !geojson_doc["properties"]["@id"].IsInt64()    ||
+        !geojson_doc["properties"]["@version"].IsInt() ||
+        !geojson_doc["properties"]["@type"].IsString()    ){
+          wrong_type_of_identity_properties++;
+          return;
     }
 
     const auto version = geojson_doc["properties"]["@version"].GetInt();
@@ -72,9 +89,10 @@ void write_with_history_tags(TagStore* store, const std::string line) {
         rapidjson::Document stored_doc;
 
         int osmType = 1;
+
         if(type == "node")     osmType = 1;
-        if(type == "way")      osmType = 2;
-        if(type == "relation") osmType = 3;
+        else if(type == "way")      osmType = 2;
+        else if(type == "relation") osmType = 3;
 
         TagHistoryArray tag_history;
 
@@ -94,7 +112,7 @@ void write_with_history_tags(TagStore* store, const std::string line) {
 
                     VersionTags version_tags;
 
-                    for (rapidjson::Value::ConstMemberIterator it= stored_doc["@tags"].MemberBegin(); it != stored_doc["@tags"].MemberEnd(); it++){
+                    for (rapidjson::Value::ConstMemberIterator it= stored_doc["a"].MemberBegin(); it != stored_doc["a"].MemberEnd(); it++){
 
                         //Add the tags to the version_tags map
                         version_tags.insert( std::make_pair( it->name.GetString(), it->value.GetString() ) );
@@ -107,7 +125,7 @@ void write_with_history_tags(TagStore* store, const std::string line) {
                     if (hist_it_idx == 0){
 
                         //Is this the most efficient way? we just need to rename it from @tags to @new_tags
-                        stored_doc.AddMember("@new_tags", stored_doc["@tags"], geojson_doc.GetAllocator());
+                        stored_doc.AddMember("@t_new", stored_doc["a"], geojson_doc.GetAllocator());
 
                     }else{
 
@@ -156,10 +174,10 @@ void write_with_history_tags(TagStore* store, const std::string line) {
                             }
                             //If we have modified or new tags, add them
                             if(mod_tags.ObjectEmpty()==false){
-                                stored_doc.AddMember("@mod_tags", mod_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("@t_mod", mod_tags, geojson_doc.GetAllocator());
                             }
                             if(new_tags.ObjectEmpty()==false){
-                                stored_doc.AddMember("@new_tags", new_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("@t_new", new_tags, geojson_doc.GetAllocator());
                             }
 
                             //Iterate over previous tags, check if any of them don't exist in this version (DEL)
@@ -173,12 +191,12 @@ void write_with_history_tags(TagStore* store, const std::string line) {
                             }
 
                             if (del_tags.ObjectEmpty() == false){
-                                stored_doc.AddMember("@del_tags", del_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("@t_del", del_tags, geojson_doc.GetAllocator());
                             }
                         }
                     }
                     hist_it_idx++;
-                    stored_doc.RemoveMember("@tags"); //We'll remove the larger @tags object, because we're only keeping diffs
+                    stored_doc.RemoveMember("a"); //We'll remove the larger @tags object, because we're only keeping diffs
 
                     //Save the new object into the object history
                     object_history.PushBack(stored_doc, geojson_doc.GetAllocator());
@@ -203,6 +221,14 @@ void write_with_history_tags(TagStore* store, const std::string line) {
     }
 }
 
+//https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
+        return !std::iscntrl(ch);
+    }));
+
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " INDEX_DIR" << std::endl;
@@ -212,11 +238,14 @@ int main(int argc, char* argv[]) {
     int feature_count = 0;
 
     std::string index_dir = argv[1];
-    std::cout << "init tag dir" << std::endl;
-    TagStore store(index_dir, false);
 
-    rapidjson::Document doc;
+
+    //TODO: Read the file in chunks, parallelize the activity
+    //  - This requires opening multiple ObjectStores as follows: (readonly)
+    ObjectStore store(index_dir, false);
+
     for (std::string line; std::getline(std::cin, line);) {
+        ltrim(line);
         write_with_history_tags(&store, line);
         feature_count++;
         if(feature_count%10000==0){

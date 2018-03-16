@@ -1,11 +1,5 @@
 echo "Running All"
 
-cd INDEXES
-
-rm -r *
-
-cd ..
-
 cd scripts
 
 time ./run-file.sh Cyberjaya
