@@ -17,7 +17,7 @@
 #include <osmium/handler.hpp>
 #include <osmium/visitor.hpp>
 
-#include "db.hpp"
+#include "db-pbf.hpp"
 
 class ObjectStoreHandler : public osmium::handler::Handler {
     ObjectStore* m_store;
