@@ -110,7 +110,7 @@ public:
         } else {
             db_options.error_if_exists = false;
             db_options.create_if_missing = false;
-            std::cout << "Open without create";
+            std::cerr << "Open without create";
             // open DB with two column families
             std::vector<rocksdb::ColumnFamilyDescriptor> column_families;
             // have to open default column family
@@ -124,7 +124,7 @@ public:
 
             std::vector<rocksdb::ColumnFamilyHandle*> handles;
 
-            s = rocksdb::DB::Open(db_options, index_dir, column_families, &handles, &m_db);
+            s = rocksdb::DB::OpenForReadOnly(db_options, index_dir, column_families, &handles, &m_db);
             assert(s.ok());
 
             m_cf_nodes = handles[1];
@@ -133,7 +133,8 @@ public:
         }
     }
 
-  rocksdb::Status get_tags(const int64_t osm_id, const int osm_type, const int version, std::string* json_value) {
+    //This needs to be read-only when it opens.
+    rocksdb::Status get_tags(const int64_t osm_id, const int osm_type, const int version, std::string* json_value) {
         const auto lookup = make_lookup(osm_id, version);
 
         if(osm_type== 1) {
