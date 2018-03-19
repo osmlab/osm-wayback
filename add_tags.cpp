@@ -29,6 +29,9 @@
 #include "rocksdb/db.h"
 
 #include "db.hpp"
+#include "pbf_json_encoding.hpp"
+
+const bool PBF_DECODING = true;
 
 //https://stackoverflow.com/questions/8473009/how-to-efficiently-compare-two-maps-of-strings-in-c
 template <typename Map>
@@ -100,19 +103,25 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
 
         if (version > 1){
             for(int v = 1; v <= version; v++) { //Going up to current version so that history is complete
-                std::string json;
-                rocksdb::Status s = store->get_tags(osm_id, osmType, v, &json);
+
+                std::string rocksEntry;
+                rocksdb::Status s = store->get_tags(osm_id, osmType, v, &rocksEntry);
 
                 if (s.ok()) {
-
-                    if(stored_doc.Parse<0>(json.c_str()).HasParseError()) {
-                      dbrocks_parse_error++;
-                      continue;
+                    if (PBF_DECODING && osmType==1){
+                        osmwayback::decode_node(rocksEntry, &stored_doc);
+                    }else if (PBF_DECODING && osmType==2){
+                        osmwayback::decode_way(rocksEntry, &stored_doc);
+                    }else{
+                        if(stored_doc.Parse<0>(rocksEntry.c_str()).HasParseError()) {
+                            dbrocks_parse_error++;
+                            continue;
+                        }
                     }
 
                     VersionTags version_tags;
 
-                    for (rapidjson::Value::ConstMemberIterator it= stored_doc["a"].MemberBegin(); it != stored_doc["a"].MemberEnd(); it++){
+                    for (rapidjson::Value::ConstMemberIterator it= stored_doc["@tags"].MemberBegin(); it != stored_doc["@tags"].MemberEnd(); it++){
 
                         //Add the tags to the version_tags map
                         version_tags.insert( std::make_pair( it->name.GetString(), it->value.GetString() ) );
@@ -125,7 +134,7 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
                     if (hist_it_idx == 0){
 
                         //Is this the most efficient way? we just need to rename it from @tags to @new_tags
-                        stored_doc.AddMember("@t_new", stored_doc["a"], geojson_doc.GetAllocator());
+                        stored_doc.AddMember("@new_tags", stored_doc["@tags"], geojson_doc.GetAllocator());
 
                     }else{
 
@@ -174,10 +183,10 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
                             }
                             //If we have modified or new tags, add them
                             if(mod_tags.ObjectEmpty()==false){
-                                stored_doc.AddMember("@t_mod", mod_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("@mod_tags", mod_tags, geojson_doc.GetAllocator());
                             }
                             if(new_tags.ObjectEmpty()==false){
-                                stored_doc.AddMember("@t_new", new_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("@new_tags", new_tags, geojson_doc.GetAllocator());
                             }
 
                             //Iterate over previous tags, check if any of them don't exist in this version (DEL)
@@ -191,12 +200,12 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
                             }
 
                             if (del_tags.ObjectEmpty() == false){
-                                stored_doc.AddMember("@t_del", del_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("@del_tags", del_tags, geojson_doc.GetAllocator());
                             }
                         }
                     }
                     hist_it_idx++;
-                    stored_doc.RemoveMember("a"); //We'll remove the larger @tags object, because we're only keeping diffs
+                    // stored_doc.RemoveMember("@tags"); //We'll remove the larger @tags object, because we're only keeping diffs
 
                     //Save the new object into the object history
                     object_history.PushBack(stored_doc, geojson_doc.GetAllocator());

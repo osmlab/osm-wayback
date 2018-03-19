@@ -1,9 +1,5 @@
 /*
-
   Build Tag History Database
-
-  (Based on osmium_pub_names example)
-
 */
 
 #include <cstdlib>  // for std::exit
@@ -17,28 +13,52 @@
 #include <osmium/handler.hpp>
 #include <osmium/visitor.hpp>
 
-#include "db-pbf.hpp"
+#include "db.hpp"
 
-class ObjectStoreHandler : public osmium::handler::Handler {
+// const bool PROTOCOL_BUFFER = true;
+
+class PBFObjectStoreHandler : public osmium::handler::Handler {
     ObjectStore* m_store;
 
 public:
-    ObjectStoreHandler(ObjectStore* store) : m_store(store) {}
+    PBFObjectStoreHandler(ObjectStore* store) : m_store(store) {}
     long node_count = 0;
     int way_count = 0;
     int rel_count = 0;
     void node(const osmium::Node& node) {
         node_count += 1;
-        m_store->store_node(node);
+        m_store->store_pbf_node(node);
     }
-
     void way(const osmium::Way& way) {
-        m_store->store_way(way);
+      //Don't exist yet
+        m_store->store_pbf_way(way);
         way_count++;
     }
-
     void relation(const osmium::Relation& relation) {
-        m_store->store_relation(relation);
+      //Don't exist yet
+        m_store->store_json_relation(relation);
+        rel_count++;
+    }
+};
+
+class JSONObjectStoreHandler : public osmium::handler::Handler {
+    ObjectStore* m_store;
+
+public:
+    JSONObjectStoreHandler(ObjectStore* store) : m_store(store) {}
+    long node_count = 0;
+    int way_count = 0;
+    int rel_count = 0;
+    void node(const osmium::Node& node) {
+        node_count += 1;
+        m_store->store_json_node(node);
+    }
+    void way(const osmium::Way& way) {
+        m_store->store_json_way(way);
+        way_count++;
+    }
+    void relation(const osmium::Relation& relation) {
+        m_store->store_json_relation(relation);
         rel_count++;
     }
 };
@@ -86,7 +106,12 @@ int main(int argc, char* argv[]) {
     std::string osm_filename = argv[2];
 
     ObjectStore store(index_dir, true);
-    ObjectStoreHandler osm_object_handler(&store);
+
+    // if (PROTOCOL_BUFFER){
+      PBFObjectStoreHandler osm_object_handler(&store);
+    // }else{
+      // JSONObjectStoreHandler osm_object_handler(&store);
+    // }
 
     std::thread t_progress(report_progress, &store);
 
