@@ -1,11 +1,11 @@
 /*
 
-  USAGE: cat <LINE-DELIMITED GEOJSON> add_tags <INDEX DIR>
+  USAGE: cat <LINE-DELIMITED GEOJSON> add_history <INDEX DIR>
 
   Reads a stream of GeoJSON objects (line-delimited) and looks up the previous
   versions of each object in the rocksdb INDEX.
 
-  It outputs a modified, enriched version of hte object with the `@history`
+  It outputs a modified, enriched version of the object with the `@history`
   property if there is any history.
 
 */
