@@ -19,6 +19,8 @@
 
 #include <chrono>
 
+#include "pbf_json_encoding.hpp"
+
 const std::string make_lookup(const int64_t osm_id, const int version){
   return std::to_string(osm_id) + "!" + std::to_string(version);
 }
@@ -117,7 +119,7 @@ public:
             column_families.push_back(rocksdb::ColumnFamilyDescriptor(
             rocksdb::kDefaultColumnFamilyName, rocksdb::ColumnFamilyOptions()));
 
-            // open the new one, too
+            // specifiy the existing column family
             column_families.push_back(rocksdb::ColumnFamilyDescriptor( "nodes", rocksdb::ColumnFamilyOptions()));
             column_families.push_back(rocksdb::ColumnFamilyDescriptor( "ways", rocksdb::ColumnFamilyOptions()));
             column_families.push_back(rocksdb::ColumnFamilyDescriptor( "relations", rocksdb::ColumnFamilyOptions()));
@@ -133,46 +135,83 @@ public:
         }
     }
 
-    //This needs to be read-only when it opens.
-    rocksdb::Status get_tags(const int64_t osm_id, const int osm_type, const int version, std::string* json_value) {
+    rocksdb::Status get_tags(const int64_t osm_id, const int osm_type, const int version, std::string* value) {
         const auto lookup = make_lookup(osm_id, version);
 
+        // Node
         if(osm_type== 1) {
-            return m_db->Get(rocksdb::ReadOptions(), m_cf_nodes, lookup, json_value);
+            return m_db->Get(rocksdb::ReadOptions(), m_cf_nodes, lookup, value);
+        // Way
         } else if (osm_type == 2) {
-            return m_db->Get(rocksdb::ReadOptions(), m_cf_ways, lookup, json_value);
+            return m_db->Get(rocksdb::ReadOptions(), m_cf_ways, lookup, value);
+        // Relation
         } else {
-            return m_db->Get(rocksdb::ReadOptions(), m_cf_relations, lookup, json_value);
+            return m_db->Get(rocksdb::ReadOptions(), m_cf_relations, lookup, value);
         }
     }
 
-    void store_node(const osmium::Node& node) {
+/*
+    Store PBF Objects in RocksDB
+*/
+    void store_pbf_node(const osmium::Node&node) {
+      std::string lookup = make_lookup( node.id(), node.version() );
 
+      if ( store_pbf_object( osmwayback::encode_node(node), lookup, m_cf_nodes) ){
+          stored_nodes_count++;
+      }
+
+      //PBF Nodes always include geometries, flush in bulks of 5M
+      if (stored_nodes_count != 0 && (stored_nodes_count % 5000000) == 0) {
+          flush_family("nodes", m_cf_nodes);
+          report_count_stats();
+      }
+    }
+
+    void store_pbf_way(const osmium::Way&way) {
+      std::string lookup = make_lookup( way.id(), way.version() );
+
+      if ( store_pbf_object( osmwayback::encode_way(way), lookup, m_cf_ways) ){
+          stored_ways_count++;
+      }
+
+      //PBF Ways... flush in bulks of 2M
+      if (stored_ways_count != 0 && (stored_ways_count % 2000000) == 0) {
+          flush_family("ways", m_cf_ways);
+          report_count_stats();
+      }
+    }
+
+
+
+/*
+    Store JSON Objects in RocksDB
+
+    (Less efficient for large areas, but useful for debugging)
+*/
+
+    void store_json_node(const osmium::Node& node) {
         rapidjson::Document json;
 
         //If there are no tags, do things differently
         if (node.tags().empty()) {
-
             //If we're not storing geometries, skip.
             if (!STORE_GEOMETRIES){
                 empty_objects_count++;
                 return;
-
             //We are storing at least geometries, so we need basic attributes
             }else{
-
                 //If it's version 1, it should match a changeset, skip all properties
                 if (node.version()==1){
                     //No tags & version 1: store only changeset INFO
-                    json = extract_primary_properties(node);
+                    json = osmwayback::extract_primary_properties(node);
                 }else{
-                    json = extract_osm_properties(node);
+                    json = osmwayback::extract_osm_properties(node);
                 }
             }
-        }else{
+        } else {
             //There are tags, so get everything
             // rapidjson::Document json;
-            json = extract_osm_properties(node);
+            json = osmwayback::extract_osm_properties(node);
         }
 
         std::string lookup = make_lookup( node.id(), node.version() );
@@ -192,20 +231,19 @@ public:
             }
         }
 
-        if(store_object(json, lookup, m_cf_nodes)) {
+        if(store_json_object(json, lookup, m_cf_nodes)) {
             stored_nodes_count++;
         }
         if (stored_nodes_count != 0 && (stored_nodes_count % 4000000) == 0) {
             flush_family("nodes", m_cf_nodes);
             report_count_stats();
         }
-
     }
 
-    void store_way(const osmium::Way& way) {
+    void store_json_way(const osmium::Way& way) {
         //Get basic properties, initialize json
         rapidjson::Document json;
-        json = extract_osm_properties(way);
+        json = osmwayback::extract_osm_properties(way);
 
         std::string lookup = make_lookup( way.id(), way.version() );
 
@@ -228,7 +266,7 @@ public:
           }
         }
 
-        if(store_object(json, lookup, m_cf_ways)) {
+        if(store_json_object(json, lookup, m_cf_ways)) {
             stored_ways_count++;
         }
 
@@ -238,14 +276,14 @@ public:
         }
     }
 
-    void store_relation(const osmium::Relation& relation) {
+    void store_json_relation(const osmium::Relation& relation) {
         //Get basic properties, initialize json
         rapidjson::Document json;
-        json = extract_osm_properties(relation);
+        json = osmwayback::extract_osm_properties(relation);
 
         std::string lookup = make_lookup( relation.id(), relation.version() );
 
-        if(store_object(json, lookup, m_cf_relations)) {
+        if(store_json_object(json, lookup, m_cf_relations)) {
             stored_relations_count++;
         }
         if (stored_relations_count != 0 && (stored_relations_count % 1000000) == 0) {
@@ -254,64 +292,25 @@ public:
         }
     }
 
-    /*
-      Extract only primary properties
-    */
-    rapidjson::Document extract_primary_properties(const osmium::OSMObject& object){
-        rapidjson::Document doc;
-        doc.SetObject();
 
-        rapidjson::Document::AllocatorType& a = doc.GetAllocator();
+/*
+    Store objects to RocksDB
+*/
+    //Store PBF Object
+    bool store_pbf_object( const std::string value, const std::string lookup, rocksdb::ColumnFamilyHandle* cf ) {
 
-        // doc.AddMember("t", object.timestamp().to_iso(), a);
-        doc.AddMember("t", uint32_t(object.timestamp()), a);
-        doc.AddMember("c", object.changeset(), a);
-        doc.AddMember("i", object.version(), a);   //i for iteration (version)
+        rocksdb::Status stat = m_buffer_batch.Put(cf, lookup, value);
 
-        return doc;
+        //Write in chunks of 2000
+        if (m_buffer_batch.Count() > 2000) {
+            m_db->Write(m_write_options, &m_buffer_batch);
+            m_buffer_batch.Clear();
+        }
+        return true;
     }
 
-    /*
-      Extract main OSM properties from the object
-    */
-    rapidjson::Document extract_osm_properties(const osmium::OSMObject& object){
-        rapidjson::Document doc;
-        doc.SetObject();
-
-        rapidjson::Document::AllocatorType& a = doc.GetAllocator();
-
-        // doc.AddMember("t", object.timestamp().to_iso(), a); //ISO is helpful for debugging, but should we leave as int?
-        doc.AddMember("t", uint32_t(object.timestamp()), a);
-        doc.AddMember("v", object.visible(), a);
-        doc.AddMember("u", std::string{object.user()}, a);
-        doc.AddMember("ui", object.uid(), a);
-        doc.AddMember("c", object.changeset(), a); //
-        doc.AddMember("i", object.version(), a);   //i for iteration (version)
-
-        //Extra
-        if (object.deleted()){
-            doc.AddMember("d", object.deleted(), a);
-        }
-
-        //Tags
-        const osmium::TagList& tags = object.tags();
-
-        rapidjson::Value object_tags(rapidjson::kObjectType);
-        for (const osmium::Tag& tag : tags) {
-            rapidjson::Value key(rapidjson::StringRef(tag.key()));
-            rapidjson::Value value(rapidjson::StringRef(tag.value()));
-
-            object_tags.AddMember(key, value, a);
-            stored_tags_count++;
-        }
-        //a for attributes
-        doc.AddMember("a", object_tags, a);
-
-        return doc;
-    }
-
-    //Store the object to rocksdb
-    bool store_object(const rapidjson::Document& doc, const std::string lookup, rocksdb::ColumnFamilyHandle* cf) {
+    //Store the rapidjson object to rocksdb
+    bool store_json_object( const rapidjson::Document& doc, const std::string lookup, rocksdb::ColumnFamilyHandle* cf ) {
 
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -319,6 +318,7 @@ public:
 
         rocksdb::Status stat = m_buffer_batch.Put(cf, lookup, buffer.GetString());
 
+        //Write in chunks of 1000
         if (m_buffer_batch.Count() > 1000) {
             m_db->Write(m_write_options, &m_buffer_batch);
             m_buffer_batch.Clear();

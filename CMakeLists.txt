@@ -1,7 +1,10 @@
 #----------------------------------------------------------------------
 #
-#  Single example osmium-contrib CMakeLists.txt
+#  OSM-Wayback CMakeLists.txt
 #
+#  Uses @mapbox/mason to link necessary libraries (osmium, rocksdb)
+#
+#  Currently compiles on Ubuntu, MacOS
 #----------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 2.8.11)
@@ -9,7 +12,7 @@ project(osm-wayback)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_USE_CXX11_ABI=0 -Wall -Wextra -pedantic -std=c++11")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
- 
+
 if(NOT CMAKE_BUILD_TYPE)
   message(STATUS "No build type specified, defaulting to Release")
   set(CMAKE_BUILD_TYPE Release)
@@ -54,11 +57,11 @@ set(ROCKSDB_LIBRARIES ${MASON_PACKAGE_rocksdb_STATIC_LIBS})
 
 set(ALL_LIBRARIES ${CMAKE_THREAD_LIBS_INIT} ${EXPAT_LIBRARIES} ${ROCKSDB_LIBRARIES} ${ZLIB_LIBRARY} ${BZIP2_LIBRARIES} )
 #----------------------------------------------------------------------
-add_executable(build_tag_lookup build_tag_lookup.cpp)
-add_executable(add_tags add_tags.cpp)
+add_executable(build_lookup_index build_lookup_index.cpp)
+add_executable(add_history add_history.cpp)
 
-target_link_libraries(build_tag_lookup ${ALL_LIBRARIES})
-target_link_libraries(add_tags ${ALL_LIBRARIES})
+target_link_libraries(build_lookup_index ${ALL_LIBRARIES})
+target_link_libraries(add_history ${ALL_LIBRARIES})
 #-----------------------------------------------------------------------------
 #
 #  Optional "cppcheck" target that checks C++ code

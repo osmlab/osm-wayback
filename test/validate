@@ -12,8 +12,6 @@ criteria = json.load(open("validation_criteria.json",'r'))
 
 ways = list(criteria['Phuket']['ways'].keys())
 
-
-
 target = criteria['Phuket']
 
 #Check that in == out:

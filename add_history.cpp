@@ -29,6 +29,9 @@
 #include "rocksdb/db.h"
 
 #include "db.hpp"
+#include "pbf_json_encoding.hpp"
+
+const bool PBF_DECODING = true;
 
 //https://stackoverflow.com/questions/8473009/how-to-efficiently-compare-two-maps-of-strings-in-c
 template <typename Map>
@@ -63,22 +66,21 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
 
     if(geojson_doc.Parse<0>(line.c_str()).HasParseError()) {
         std::cerr << "ERROR" << std::endl;
-        // std::cerr << line.c_str();
         input_feature_parse_error++;
         return;
     }
 
-    if(!geojson_doc.HasMember("properties")){
-        no_properties++;
-        return;
-    }
+    // if(!geojson_doc.HasMember("properties")){
+    //     no_properties++;
+    //     return;
+    // }
 
-    if( !geojson_doc["properties"]["@id"].IsInt64()    ||
-        !geojson_doc["properties"]["@version"].IsInt() ||
-        !geojson_doc["properties"]["@type"].IsString()    ){
-          wrong_type_of_identity_properties++;
-          return;
-    }
+    // if( !geojson_doc["properties"]["@id"].IsInt64()    ||
+    //     !geojson_doc["properties"]["@version"].IsInt() ||
+    //     !geojson_doc["properties"]["@type"].IsString()    ){
+    //       wrong_type_of_identity_properties++;
+    //       return;
+    // }
 
     const auto version = geojson_doc["properties"]["@version"].GetInt();
     const auto osm_id = geojson_doc["properties"]["@id"].GetInt64();
@@ -100,15 +102,28 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
 
         if (version > 1){
             for(int v = 1; v <= version; v++) { //Going up to current version so that history is complete
-                std::string json;
-                rocksdb::Status s = store->get_tags(osm_id, osmType, v, &json);
+
+                std::string rocksEntry;
+                rocksdb::Status s = store->get_tags(osm_id, osmType, v, &rocksEntry);
 
                 if (s.ok()) {
-
-                    if(stored_doc.Parse<0>(json.c_str()).HasParseError()) {
-                      dbrocks_parse_error++;
-                      continue;
+                    if (PBF_DECODING && osmType==1){
+                        osmwayback::decode_node(rocksEntry, &stored_doc);
+                    }else if (PBF_DECODING && osmType==2){
+                        osmwayback::decode_way(rocksEntry, &stored_doc);
+                    }else{
+                        if(stored_doc.Parse<0>(rocksEntry.c_str()).HasParseError()) {
+                            dbrocks_parse_error++;
+                            continue;
+                        }
                     }
+
+                    /*
+                        a  = tags (attributes)
+                        aA = attributes added;
+                        aM = attributes modified;
+                        aD = attributes deleted;
+                    */
 
                     VersionTags version_tags;
 
@@ -125,15 +140,13 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
                     if (hist_it_idx == 0){
 
                         //Is this the most efficient way? we just need to rename it from @tags to @new_tags
-                        stored_doc.AddMember("@t_new", stored_doc["a"], geojson_doc.GetAllocator());
+                        stored_doc.AddMember("aA", stored_doc["a"], geojson_doc.GetAllocator());
 
                     }else{
 
                         //Check if they are exactly the same:
                         if ( map_compare( tag_history[hist_it_idx-1], tag_history[hist_it_idx] ) ){
-                            //Tags have not changed at all
-                            //TODO: Delete @tags (after debugging)
-                            // ^ I really hope this is working properly
+                            //If they are exactly the same... do nothing
                         }else{
                             //There has been one of 3 changes:
                             //1. New tags
@@ -174,10 +187,10 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
                             }
                             //If we have modified or new tags, add them
                             if(mod_tags.ObjectEmpty()==false){
-                                stored_doc.AddMember("@t_mod", mod_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("aM", mod_tags, geojson_doc.GetAllocator());
                             }
                             if(new_tags.ObjectEmpty()==false){
-                                stored_doc.AddMember("@t_new", new_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("aA", new_tags, geojson_doc.GetAllocator());
                             }
 
                             //Iterate over previous tags, check if any of them don't exist in this version (DEL)
@@ -191,12 +204,12 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
                             }
 
                             if (del_tags.ObjectEmpty() == false){
-                                stored_doc.AddMember("@t_del", del_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("aD", del_tags, geojson_doc.GetAllocator());
                             }
                         }
                     }
                     hist_it_idx++;
-                    stored_doc.RemoveMember("a"); //We'll remove the larger @tags object, because we're only keeping diffs
+                    stored_doc.RemoveMember("a"); //We'll remove the larger attributes object because we're only keeping diffs.
 
                     //Save the new object into the object history
                     object_history.PushBack(stored_doc, geojson_doc.GetAllocator());
@@ -259,7 +272,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::cerr << "\n"<< feature_count << " features processed, additional history values: " << history_count << std::endl;
-    std::cerr << "\t" << lookup_fail << " (" << (lookup_fail / (lookup_fail + history_count)*100) << "%) \tLookup failures (specific history versions probably don't have any tags)"  << std::endl;
+    std::cerr << "\t" << lookup_fail << " (" << (lookup_fail / (lookup_fail + history_count)*100) << "%) \tLookup failures"  << std::endl;
     std::cerr << "\t" << input_feature_parse_error <<  "\tInput feature parse failures"  << std::endl;
     std::cerr << "\t" << no_properties <<  "\tInput features without _properties_ object"  << std::endl;
     std::cerr << "\t" << wrong_type_of_identity_properties <<  "\tInput features with wrong property types"   << std::endl;
