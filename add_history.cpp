@@ -66,22 +66,21 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
 
     if(geojson_doc.Parse<0>(line.c_str()).HasParseError()) {
         std::cerr << "ERROR" << std::endl;
-        // std::cerr << line.c_str();
         input_feature_parse_error++;
         return;
     }
 
-    if(!geojson_doc.HasMember("properties")){
-        no_properties++;
-        return;
-    }
+    // if(!geojson_doc.HasMember("properties")){
+    //     no_properties++;
+    //     return;
+    // }
 
-    if( !geojson_doc["properties"]["@id"].IsInt64()    ||
-        !geojson_doc["properties"]["@version"].IsInt() ||
-        !geojson_doc["properties"]["@type"].IsString()    ){
-          wrong_type_of_identity_properties++;
-          return;
-    }
+    // if( !geojson_doc["properties"]["@id"].IsInt64()    ||
+    //     !geojson_doc["properties"]["@version"].IsInt() ||
+    //     !geojson_doc["properties"]["@type"].IsString()    ){
+    //       wrong_type_of_identity_properties++;
+    //       return;
+    // }
 
     const auto version = geojson_doc["properties"]["@version"].GetInt();
     const auto osm_id = geojson_doc["properties"]["@id"].GetInt64();
@@ -119,9 +118,16 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
                         }
                     }
 
+                    /*
+                        a  = tags (attributes)
+                        aA = attributes added;
+                        aM = attributes modified;
+                        aD = attributes deleted;
+                    */
+
                     VersionTags version_tags;
 
-                    for (rapidjson::Value::ConstMemberIterator it= stored_doc["@tags"].MemberBegin(); it != stored_doc["@tags"].MemberEnd(); it++){
+                    for (rapidjson::Value::ConstMemberIterator it= stored_doc["a"].MemberBegin(); it != stored_doc["a"].MemberEnd(); it++){
 
                         //Add the tags to the version_tags map
                         version_tags.insert( std::make_pair( it->name.GetString(), it->value.GetString() ) );
@@ -134,15 +140,13 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
                     if (hist_it_idx == 0){
 
                         //Is this the most efficient way? we just need to rename it from @tags to @new_tags
-                        stored_doc.AddMember("@new_tags", stored_doc["@tags"], geojson_doc.GetAllocator());
+                        stored_doc.AddMember("aA", stored_doc["a"], geojson_doc.GetAllocator());
 
                     }else{
 
                         //Check if they are exactly the same:
                         if ( map_compare( tag_history[hist_it_idx-1], tag_history[hist_it_idx] ) ){
-                            //Tags have not changed at all
-                            //TODO: Delete @tags (after debugging)
-                            // ^ I really hope this is working properly
+                            //If they are exactly the same... do nothing
                         }else{
                             //There has been one of 3 changes:
                             //1. New tags
@@ -183,10 +187,10 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
                             }
                             //If we have modified or new tags, add them
                             if(mod_tags.ObjectEmpty()==false){
-                                stored_doc.AddMember("@mod_tags", mod_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("aM", mod_tags, geojson_doc.GetAllocator());
                             }
                             if(new_tags.ObjectEmpty()==false){
-                                stored_doc.AddMember("@new_tags", new_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("aA", new_tags, geojson_doc.GetAllocator());
                             }
 
                             //Iterate over previous tags, check if any of them don't exist in this version (DEL)
@@ -200,12 +204,12 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
                             }
 
                             if (del_tags.ObjectEmpty() == false){
-                                stored_doc.AddMember("@del_tags", del_tags, geojson_doc.GetAllocator());
+                                stored_doc.AddMember("aD", del_tags, geojson_doc.GetAllocator());
                             }
                         }
                     }
                     hist_it_idx++;
-                    // stored_doc.RemoveMember("@tags"); //We'll remove the larger @tags object, because we're only keeping diffs
+                    stored_doc.RemoveMember("a"); //We'll remove the larger attributes object because we're only keeping diffs.
 
                     //Save the new object into the object history
                     object_history.PushBack(stored_doc, geojson_doc.GetAllocator());

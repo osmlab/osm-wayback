@@ -1,7 +1,7 @@
 # osm-wayback
 <!-- [![Build Status](https://travis-ci.org/mapbox/osm-wayback.svg?branch=master)](https://travis-ci.org/mapbox/osm-tag-history) -->
 
-Creates a [RocksDB](//rocksdb.org) key-value store of each version of OSM objects found in OSM history files. This history index can then be used to augment GeoJSON files of OSM objects to add a `@history` property that includes a record of all _previous_ edits.
+Creates a [RocksDB](//rocksdb.org) key-value store of each version of OSM objects found in OSM history files. This history index can then be used to augment GeoJSON files of OSM objects to add a `@h` property (history) that includes a record of all _previous_ edits.
 
 :rocket: Final goal is to create historic geometries for each intermediate version of an OSM feature.
 
@@ -47,9 +47,12 @@ cat features.geojson | add_history INDEX_DIR
 The output is a stream of augmented GeoJSON features with an additional `@history` array of the following schema.
 
 ## Historical Feature Schema for TAGS
-OSM objects that have history will have an extra attribute prefixed with `@`. This ``@history` object is an array of individual historical versions and is stored in the properties of the main GeoJSON Feature. The final object in the history array is the current version of the object. This allows tag changes to be easily tracked between all versions.
+OSM objects that have history will have an extra attribute, `@h`.
+This history object is an array of individual historical versions and is stored in the properties of the main GeoJSON Feature. 
+The final object in the history array is the current version of the object. This allows tag changes to be easily tracked between all versions.
+
 ```
-"@history": [
+"@h": [
   <history object version 1>,
   <history object version 2>,
   ...

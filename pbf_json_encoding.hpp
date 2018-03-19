@@ -100,6 +100,25 @@ namespace osmwayback {
 
     These functions decode PBF messages from rocksdb INTO json objects
 
+    //To save space within GeoJSON objects, historical attribute names are shorted; these can be expanded later in a per-tile basis, the entire history object is String Encoded, so it's best to keep it short.
+
+    @timestamp = t;
+    @changeset = c;
+    @uid       = u; (user ID)
+    @user      = h; (handle)
+    @version   = i; (iteration)
+    @visible   = v;
+    @deleted   = d;
+
+    tags       = a; //attributes
+    aA         = attributes added;
+    aM         = attributes modified;
+    aD         = attributes deleted;
+
+    //Object specific attributes:
+    coordinates = p //p for point (only point geoms here)
+    nodes      = n;
+
 */
 
     // Decode PBF_Node as JSON Object (in place (?) )
@@ -113,28 +132,32 @@ namespace osmwayback {
         std::string previous_key{};
         rapidjson::Value object_tags(rapidjson::kObjectType);
         rapidjson::Value coordinates(rapidjson::kArrayType);
+        bool deleted;
         while (message.next()) {
             switch (message.tag()) {
                 case 1:
-                    doc->AddMember("@timestamp", message.get_fixed64(), a);
+                    doc->AddMember("t", message.get_fixed64(), a);
                     break;
                 case 2:
-                    doc->AddMember("@changeset", message.get_uint32(), a);
+                    doc->AddMember("c", message.get_uint32(), a);
                     break;
                 case 3:
-                    doc->AddMember("@version", message.get_uint32(), a);
+                    doc->AddMember("i", message.get_uint32(), a);
                     break;
                 case 4:
-                    doc->AddMember("@uid", message.get_uint32(), a);
+                    doc->AddMember("u", message.get_uint32(), a);
                     break;
                 case 5:
-                    doc->AddMember("@user", message.get_string(), a);
+                    doc->AddMember("h", message.get_string(), a);
                     break;
                 case 6:
-                    doc->AddMember("@visible", message.get_bool(), a);
+                    // doc->AddMember("v", message.get_bool(), a);
                     break;
                 case 7:
-                    doc->AddMember("@deleted", message.get_bool(), a);
+                    deleted = message.get_bool();
+                    if (deleted){
+                      doc->AddMember("d", deleted, a);
+                    }
                     break;
                 case 8:
                       coordinates.PushBack(message.get_double(),a);
@@ -160,11 +183,11 @@ namespace osmwayback {
         }
 
         if (!coordinates.ObjectEmpty() ){
-            doc->AddMember("@coordinates",coordinates,a);
+            doc->AddMember("p",coordinates,a);
         }
 
         if ( !object_tags.ObjectEmpty() ){
-            doc->AddMember("@tags",object_tags, a);
+            doc->AddMember("a",object_tags, a);
         }
     }
 
@@ -186,25 +209,25 @@ namespace osmwayback {
         while (message.next()) {
             switch (message.tag()) {
                 case 1:
-                    doc->AddMember("@timestamp", message.get_fixed64(), a);
+                    doc->AddMember("t", message.get_fixed64(), a);
                     break;
                 case 2:
-                    doc->AddMember("@changeset", message.get_uint32(), a);
+                    doc->AddMember("c", message.get_uint32(), a);
                     break;
                 case 3:
-                    doc->AddMember("@version", message.get_uint32(), a);
+                    doc->AddMember("i", message.get_uint32(), a);
                     break;
                 case 4:
-                    doc->AddMember("@uid", message.get_uint32(), a);
+                    doc->AddMember("u", message.get_uint32(), a);
                     break;
                 case 5:
-                    doc->AddMember("@user", message.get_string(), a);
+                    doc->AddMember("h", message.get_string(), a);
                     break;
                 case 6:
-                    doc->AddMember("@visible", message.get_bool(), a);
+                    doc->AddMember("v", message.get_bool(), a);
                     break;
                 case 7:
-                    doc->AddMember("@deleted", message.get_bool(), a);
+                    doc->AddMember("d", message.get_bool(), a);
                     break;
                 case 8:
                     //Node refs
@@ -231,11 +254,11 @@ namespace osmwayback {
         }
 
         if ( !noderefs.ObjectEmpty() ){
-            doc->AddMember("@nodes",noderefs, a);
+            doc->AddMember("n",noderefs, a);
         }
 
         if ( !object_tags.ObjectEmpty() ){
-            doc->AddMember("@tags",object_tags, a);
+            doc->AddMember("a",object_tags, a);
         }
     }
 
@@ -281,8 +304,8 @@ namespace osmwayback {
         // doc.AddMember("t", object.timestamp().to_iso(), a); //ISO is helpful for debugging, but should we leave as int?
         doc.AddMember("t", uint32_t(object.timestamp()), a);
         doc.AddMember("v", object.visible(), a);
-        doc.AddMember("u", std::string{object.user()}, a);
-        doc.AddMember("ui", object.uid(), a);
+        doc.AddMember("h", std::string{object.user()}, a); //handle
+        doc.AddMember("u", object.uid(), a);
         doc.AddMember("c", object.changeset(), a); //
         doc.AddMember("i", object.version(), a);   //i for iteration (version)
 
@@ -307,72 +330,3 @@ namespace osmwayback {
         return doc;
     }
 }
-
-
-    // struct Changeset {
-    //   uint64_t created_at;
-    //   uint64_t closed_at;
-    //   std::map<std::string, std::string> tags;
-    // };
-    //
-    // const std::string encode_changeset(const osmium::Changeset& changeset) {
-    //   std::string data;
-    //   protozero::pbf_writer encoder(data);
-    //
-    //   encoder.add_fixed64(1, static_cast<int>(changeset.created_at().seconds_since_epoch()));
-    //   encoder.add_fixed64(2, static_cast<int>(changeset.closed_at().seconds_since_epoch()));
-    //
-    //   const osmium::TagList& tags = changeset.tags();
-    //   for (const osmium::Tag& tag : tags) {
-    //     encoder.add_string(17, tag.key());
-    //     encoder.add_string(17, tag.value());
-    //   }
-    //
-    //   return data;
-    // }
-    //
-    // const Changeset decode_changeset(std::string data) {
-    //   protozero::pbf_reader message(data);
-    //   Changeset changeset{};
-    //   changeset.tags = std::map<std::string, std::string>{};
-    //
-    //   std::string previous_key{};
-    //     while (message.next()) {
-    //         switch (message.tag()) {
-    //             case 1:
-    //                 changeset.created_at = message.get_fixed64();
-    //                 break;
-    //             case 2:
-    //                 changeset.closed_at = message.get_fixed64();
-    //                 break;
-    //             case 17:
-    //                 changeset.closed_at = message.get_fixed64();
-    //                 if (previous_key.empty()) {
-    //                     previous_key = message.get_string();
-    //                 } else {
-    //                     changeset.tags[previous_key] = message.get_string();
-    //                     previous_key = "";
-    //                 }
-    //                 break;
-    //             default:
-    //                 message.skip();
-    //         }
-    //     }
-    //
-    //  return changeset;
-    // }
-// }
-
-
-// A separate object? Are there benefits of doing this?
-// struct Node {
-//     uint64_t timestamp;
-//     int      changeset;
-//     int      uid;
-//     int      version;
-//     std::string user;
-//     bool     visible;
-//     bool     deleted;
-//
-//     std::map<std::string, std::string> tags;
-// };
