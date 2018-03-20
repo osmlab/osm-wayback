@@ -151,6 +151,7 @@ namespace osmwayback {
                     doc->AddMember("h", message.get_string(), a);
                     break;
                 case 6:
+                    message.get_bool();
                     // doc->AddMember("v", message.get_bool(), a);
                     break;
                 case 7:
@@ -160,11 +161,11 @@ namespace osmwayback {
                     }
                     break;
                 case 8:
-                      coordinates.PushBack(message.get_double(),a);
-                      break;
+                    coordinates.PushBack(message.get_double(),a);
+                    break;
                 case 9:
-                      coordinates.PushBack(message.get_double(),a);
-                      break;
+                    coordinates.PushBack(message.get_double(),a);
+                    break;
                 case 10:
                 //Tags
                     if (previous_key.empty()) {
@@ -206,6 +207,7 @@ namespace osmwayback {
 
         protozero::iterator_range<protozero::pbf_reader::const_int64_iterator> nodeIDs;
 
+        bool deleted;
         while (message.next()) {
             switch (message.tag()) {
                 case 1:
@@ -224,10 +226,14 @@ namespace osmwayback {
                     doc->AddMember("h", message.get_string(), a);
                     break;
                 case 6:
-                    doc->AddMember("v", message.get_bool(), a);
+                    message.get_bool();
+                    // doc->AddMember("v", message.get_bool(), a);
                     break;
                 case 7:
-                    doc->AddMember("d", message.get_bool(), a);
+                    deleted = message.get_bool();
+                    if (deleted){
+                      doc->AddMember("d", deleted, a);
+                    }
                     break;
                 case 8:
                     //Node refs
