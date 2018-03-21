@@ -63,8 +63,8 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
       //A set of nodes to lookup in the index.
       std::set<std::string> nodeRefs;
 
-      std::cout << "OSMID: "<< osm_id << std::endl;
-      std::cout << "-----------" << std::endl;
+      // std::cout << "OSMID: "<< osm_id << std::endl;
+      // std::cout << "-----------" << std::endl;
 
       try{
         //Iterate through the history object, looking for node references
@@ -105,7 +105,7 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
         geojson_doc.Accept(writer);
         std::cout << buffer.GetString() << std::endl;
 
-        std::cout << "===============" << std::endl;
+        // std::cout << "===============" << std::endl;
 
       } catch (const std::exception& ex) {
           std::cerr<< ex.what() << std::endl;
