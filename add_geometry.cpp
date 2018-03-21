@@ -1,12 +1,9 @@
 /*
 
-  USAGE: cat <LINE-DELIMITED GEOJSON> add_history <INDEX DIR>
+  USAGE: cat <LINE-DELIMITED GEOJSON> add_geometry <INDEX DIR>
 
   Reads a stream of GeoJSON objects (line-delimited) and looks up the previous
-  versions of each object in the rocksdb INDEX.
-
-  It outputs a modified, enriched version of the object with the `@history`
-  property if there is any history.
+  versions of each object in the rocksdb locations INDEX.
 
 */
 
@@ -64,8 +61,10 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
       const std::string type = geojson_doc["properties"]["@type"].GetString();
 
       //A set of nodes to lookup in the index.
-      std::set<int64_t> nodeRefs;
-      // std::cout << "OSM ID: " << osm_id << std::endl;
+      std::set<std::string> nodeRefs;
+
+      std::cout << "OSMID: "<< osm_id << std::endl;
+      std::cout << "-----------" << std::endl;
 
       try{
         //Iterate through the history object, looking for node references
@@ -75,47 +74,36 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
           if (histObj.HasMember("n") ){
             //Add them to the nodeRefs set.
             for (auto& nodeRef : histObj["n"].GetArray()){
-              nodeRefs.insert(nodeRef.GetInt64());
+              nodeRefs.insert(std::to_string(nodeRef.GetInt64()));
             }
           }
         }
 
-        //Now iterate through the node references and get all of the versions of the node; still need to find best way to do that ... is it prefix matching?
-
-        bool status;
         std::string rocksEntry;
+        rapidjson::Document thisNodeHistory;
+        rapidjson::Value nodesHistory(rapidjson::kObjectType);
 
-        rapidjson::Document nodes;
-        nodes.SetObject();
+        for (std::set<std::string>::iterator it=nodeRefs.begin(); it!=nodeRefs.end(); ++it){
 
-        rapidjson::Value nodeHistory(rapidjson::kArrayType);
+          std::cout << "NODE: " << *it << std::endl;
 
-        std::cout << "OSM ID: " << osm_id << std::endl;
+          rocksdb::Status status = store->get_node_locations(*it, &rocksEntry);
 
-        for (std::set<std::int64_t>::iterator it=nodeRefs.begin(); it!=nodeRefs.end(); ++it){
-
-          //How do we know what versions to lookup? Herein lies the main problem...
-          status = store->fetch_node_history(*it, &nodeHistory);
-
-          if (status){
-
-            // rapidjson::StringBuffer buffer;
-            // rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-            // nodeHistory.Accept(writer);
-            // std::cout << nodeHistory.GetString() << std::endl;
-
-            // std::string nodeKey = (*it).to_string();
-            // std::string nodeKeyStr = std::to_string(*it);
-            // rapidjson::Value nodeKey(nodeKeyStr.c_str(), nodes.GetAllocator());
-            // nodes.AddMember(nodeKey, nodeHistory, nodes.GetAllocator());
+          //rocksEntry is the string of node history, which is a JSON doc, add it to the array
+          if(status.ok()){
+              rapidjson::Value nodeIDStr;
+              nodeIDStr.SetString(*it, geojson_doc.GetAllocator());
+              thisNodeHistory.Parse<0>(rocksEntry.c_str());
+              nodesHistory.AddMember(nodeIDStr,thisNodeHistory,geojson_doc.GetAllocator());
           }
-
         }
 
-        // rapidjson::StringBuffer buffer;
-        // rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        // nodes.Accept(writer);
-        // std::cout << buffer.GetString() << std::endl;
+        geojson_doc.AddMember("nodeLocations",nodesHistory,geojson_doc.GetAllocator());
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        geojson_doc.Accept(writer);
+        std::cout << buffer.GetString() << std::endl;
 
         std::cout << "===============" << std::endl;
 

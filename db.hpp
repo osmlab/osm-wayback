@@ -184,6 +184,10 @@ public:
         }
     }
 
+    rocksdb::Status get_node_locations(const std::string nodeID, std::string* value) {
+        return m_db->Get(rocksdb::ReadOptions(), m_cf_locations, nodeID, value);
+    }
+
 /*
     Store PBF Objects in RocksDB
 */
@@ -422,7 +426,7 @@ public:
         compact_family("nodes",     m_cf_nodes);
         compact_family("ways",      m_cf_ways);
         compact_family("relations", m_cf_relations);
-        flush_family("locations",   m_cf_locations);
+        compact_family("locations", m_cf_locations);
 
         report_count_stats();
     }
