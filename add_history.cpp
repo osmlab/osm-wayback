@@ -29,7 +29,8 @@
 #include "rocksdb/db.h"
 
 #include "db.hpp"
-#include "pbf_json_encoding.hpp"
+#include "pbf_encoding.hpp"
+#include "json_encoding.hpp"
 
 const bool PBF_DECODING = true;
 
@@ -69,18 +70,6 @@ void write_with_history_tags(ObjectStore* store, const std::string line) {
         input_feature_parse_error++;
         return;
     }
-
-    // if(!geojson_doc.HasMember("properties")){
-    //     no_properties++;
-    //     return;
-    // }
-
-    // if( !geojson_doc["properties"]["@id"].IsInt64()    ||
-    //     !geojson_doc["properties"]["@version"].IsInt() ||
-    //     !geojson_doc["properties"]["@type"].IsString()    ){
-    //       wrong_type_of_identity_properties++;
-    //       return;
-    // }
 
     const auto version = geojson_doc["properties"]["@version"].GetInt();
     const auto osm_id = geojson_doc["properties"]["@id"].GetInt64();

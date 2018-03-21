@@ -15,7 +15,7 @@
 
 #include "db.hpp"
 
-// const bool PROTOCOL_BUFFER = true;
+bool LOC = true;
 
 class PBFObjectStoreHandler : public osmium::handler::Handler {
     ObjectStore* m_store;
@@ -28,9 +28,11 @@ public:
     void node(const osmium::Node& node) {
         node_count += 1;
         m_store->store_pbf_node(node);
+        if(LOC){
+          m_store->upsert_node_location(node);
+        }
     }
     void way(const osmium::Way& way) {
-      //Don't exist yet
         m_store->store_pbf_way(way);
         way_count++;
     }
@@ -107,15 +109,12 @@ int main(int argc, char* argv[]) {
 
     ObjectStore store(index_dir, true);
 
-    // if (PROTOCOL_BUFFER){
-      PBFObjectStoreHandler osm_object_handler(&store);
-    // }else{
-      // JSONObjectStoreHandler osm_object_handler(&store);
-    // }
+    PBFObjectStoreHandler osm_object_handler(&store);
 
     std::thread t_progress(report_progress, &store);
 
     osmium::io::Reader reader{osm_filename, osmium::osm_entity_bits::node | osmium::osm_entity_bits::way | osmium::osm_entity_bits::relation};
+
     osmium::apply(reader, osm_object_handler);
 
     stop_progress = true;

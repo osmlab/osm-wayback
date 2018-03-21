@@ -9,7 +9,6 @@
 #include "rapidjson/document.h"
 
 #include <osmium/osm/types.hpp>
-#include <map>
 
 namespace osmwayback {
 
@@ -89,10 +88,9 @@ namespace osmwayback {
         for (const osmium::Tag& tag : tags) {
           encoder.add_string(10, tag.key());
           encoder.add_string(10, tag.value());
-      }
-      return data;
+        }
+        return data;
     }
-
 
 /*
     PBF Object Decoding
@@ -266,73 +264,5 @@ namespace osmwayback {
         if ( !object_tags.ObjectEmpty() ){
             doc->AddMember("a",object_tags, a);
         }
-    }
-
-
-
-/*
-
-    JSON Object Encoding
-    ====================
-
-    These functions convert osmium objects to json objects (rapidjson::Document)
-
-    These are primarily used to add json strings to rocksdb so will likely be deprecated shortly.
-
-*/
-
-    /*
-      Extract only primary properties
-    */
-    rapidjson::Document extract_primary_properties(const osmium::OSMObject& object){
-        rapidjson::Document doc;
-        doc.SetObject();
-
-        rapidjson::Document::AllocatorType& a = doc.GetAllocator();
-
-        // doc.AddMember("t", object.timestamp().to_iso(), a);
-        doc.AddMember("t", uint32_t(object.timestamp()), a);
-        doc.AddMember("c", object.changeset(), a);
-        doc.AddMember("i", object.version(), a);   //i for iteration (version)
-
-        return doc;
-    }
-
-    /*
-      Extract main OSM properties from the object
-    */
-    rapidjson::Document extract_osm_properties(const osmium::OSMObject& object){
-        rapidjson::Document doc;
-        doc.SetObject();
-
-        rapidjson::Document::AllocatorType& a = doc.GetAllocator();
-
-        // doc.AddMember("t", object.timestamp().to_iso(), a); //ISO is helpful for debugging, but should we leave as int?
-        doc.AddMember("t", uint32_t(object.timestamp()), a);
-        doc.AddMember("v", object.visible(), a);
-        doc.AddMember("h", std::string{object.user()}, a); //handle
-        doc.AddMember("u", object.uid(), a);
-        doc.AddMember("c", object.changeset(), a); //
-        doc.AddMember("i", object.version(), a);   //i for iteration (version)
-
-        //Extra
-        if (object.deleted()){
-            doc.AddMember("d", object.deleted(), a);
-        }
-
-        //Tags
-        const osmium::TagList& tags = object.tags();
-
-        rapidjson::Value object_tags(rapidjson::kObjectType);
-        for (const osmium::Tag& tag : tags) {
-            rapidjson::Value key(rapidjson::StringRef(tag.key()));
-            rapidjson::Value value(rapidjson::StringRef(tag.value()));
-
-            object_tags.AddMember(key, value, a);
-        }
-        //a for attributes
-        doc.AddMember("a", object_tags, a);
-
-        return doc;
     }
 }
