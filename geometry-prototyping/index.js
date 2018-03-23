@@ -32,18 +32,20 @@ function processLine (line) {
         object.properties['@history'].forEach(function(histObj){
           // if (histObj.i == 1){
 
-            if( geometryBuilder.majorVersions.hasOwnProperty(histObj.i) ){
-              histObj.geometry = geometryBuilder.majorVersions[histObj.i]
+            if( geometryBuilder.historicalGeometries.hasOwnProperty(histObj.i) ){
               console.log(JSON.stringify(
-                {type:"Feature",
-                 properties: {
-                   'id':object.properties['@id'],
-                   'v':histObj.i
-                 },
-                 geometry: { type:  "LineString",
-                    coordinates: histObj.geometry
-                  }
-                }));
+                geometryBuilder.historicalGeometries[histObj.i])
+              )
+              // console.log(JSON.stringify(
+              //   {type:"Feature",
+              //    properties: {
+              //      'id':object.properties['@id'],
+              //      'v':histObj.i
+              //    },
+              //    geometry: { type:  "LineString",
+              //       coordinates: histObj.geometry
+              //     }
+              //   }));
             }
 
           // }

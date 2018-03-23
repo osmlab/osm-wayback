@@ -7,8 +7,7 @@ module.exports = function(nodeLocations, history, osmID){
   this.nodeLocations = nodeLocations;
   this.versions      = history;
   this.osmID         = osmID;
-
-  this.majorVersions = {};
+  this.historicalGeometries = {};
 
   //Given a node reference and possible dates, return versions of the node that _could be_.
   this.getNodeVersions = function(nodeRef, validSince, validUntil, changeset){
@@ -147,7 +146,7 @@ module.exports = function(nodeLocations, history, osmID){
 
     // console.log(that.nodeLocations)
 
-    for(var i in that.versions){
+    for(var i=0; i<that.versions.length; i++){
       validSince = false;
       validUntil = false;
       // console.warn(`\nGoing for Major Version: ${that.versions[i].i} with timestamp ${that.versions[i].t} by ${that.versions[i].h} c:${that.versions[i].c}`)
@@ -157,7 +156,7 @@ module.exports = function(nodeLocations, history, osmID){
       }
       // //If there's another version to come, set validUntil
       if(i < that.versions.length-1){
-        validUntil = that.versions[Number(i)+1].t //That's dumb, that's really dumb
+        validUntil = that.versions[i+1].t //That's dumb, that's really dumb
       }
 
       //Now construct all possible geometries for this Major Version:
@@ -166,7 +165,23 @@ module.exports = function(nodeLocations, history, osmID){
         var geometries = that.buildAllPossibleGeometries(that.versions[i].n, validSince, validUntil,that.versions[i].c)
 
         if(geometries.majorVersion){
-          that.majorVersions[i] = geometries.majorVersion
+          that.historicalGeometries[i] = [{
+            'type':"Feature",
+            'properties':{
+              '@version': i,
+              '@minorVersion': 0,
+              '@validSince': that.versions[i].t,
+              '@validUntil': (i<that.versions.length-1)? that.versions[i+1].t: null
+            },
+            'geometry': {
+              'type':"LineString",
+              'coordinates' : geometries.majorVersion
+            }
+          }]
+        }
+
+        if (geometries.minorVersion){
+          //still gotta figure this part out.
         }
       }
 
