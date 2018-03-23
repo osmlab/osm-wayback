@@ -1,25 +1,19 @@
 var _ = require('lodash');
 
-module.exports = function(nodeLocations, history){
+const MINOR_VERSION_SECOND_THRESHOLD = 60*15; //15 minutes
+
+module.exports = function(nodeLocations, history, osmID){
 
   this.nodeLocations = nodeLocations;
   this.versions      = history;
+  this.osmID         = osmID;
 
-  // console.log(this.nodeLocations)
-  // console.log("===============")
-  // function simplifyNodeHistory(nodes){
-  //   Object.keys(nodes).forEach(function(nodeID){
-  //     console.log(nodes[nodeID])
-  //     console.log("Woah")
-  //   })
-  // }
-
-  // simplifyNodeHistory(this.nodeLocations);
+  this.majorVersions = {};
 
   //Given a node reference and possible dates, return versions of the node that _could be_.
-  this.getNodeVersions = function(nodeRef, validSince, validUntil){
+  this.getNodeVersions = function(nodeRef, validSince, validUntil, changeset){
     var that = this;
-    console.warn("Looking up node: "+nodeRef);
+    // console.warn("Looking up node: "+nodeRef);
     nodeVersionsByChangeset = that.nodeLocations[nodeRef.toString()];
 
     if (nodeVersionsByChangeset==undefined){
@@ -28,6 +22,9 @@ module.exports = function(nodeLocations, history){
     }
     // Ensure node versions are sorted appropriately
     var nodeVersions = _.sortBy(Object.values(nodeVersionsByChangeset),function(n){return n.t});
+
+    //Filter to only have geometries... otherwise less interested
+    nodeVersions = nodeVersions.filter(function(n){return n.hasOwnProperty('p')})
 
     //If there's only one version of the node, use it (always)
     if (nodeVersions.length==1){ return nodeVersions; }//
@@ -39,60 +36,121 @@ module.exports = function(nodeLocations, history){
     if(validSince){
       //Cut out previous versions, but save t-1
       nodeVersions.forEach(function(node){
-        if (node.t >= validSince){
+        //
+        // OVERRIDE 1: Always add if changeset matches (the timestamp will be less, but changeset will match)
+        if (node.c==changeset){
+          filteredNodes.push(node)
+        }else if (node.t >= validSince){
           filteredNodes.push(node)
         }
+
         prevNode = node;
       })
       //Safety condition 1: If there are now NO NODES, return prevNode
       if(filteredNodes.length==0){
-        return prevNode;
+        return [prevNode];
       }
     }else{
       filteredNodes = nodeVersions;
     }
 
+    //stay safe from atomic changes below...
+    var filterable = JSON.parse(JSON.stringify(filteredNodes));
+
     //If we have a validUntil, then filter the future nodes out
     if (validUntil){
-      filteredNodes = filteredNodes.filter(function(v){return v.t < validUntil})
-      //If this removed all nodes, then we have a bit of a problem
-      if(filteredNodes.length==0){
-        console.error("validUntil filtered out all nodes")
-        return null;
+      //OVERRIDE 2: IF there is a matching changeset, be sure it doesn't get abandoned
+      //create a new object
+      // console.log(filterable)
+      filterable = filterable.filter(function(v){return (v.t < validUntil || v.c==changeset)})
+
+      if(filterable.length==0){
+        //If this removed all nodes, then return the most recent version; there is likely a _deleted_ version later
+        // console.error("validUntil filtered out all nodes")
+        return [prevNode]
       }
     }
-    return filteredNodes;
+    if (filterable.length==1){
+      return filterable;
+    }else{
+      //OVER RIDE 2: If there is not an actual geometry change, then don't return it!
+      try{
+        var prev = filterable[0].p
+        var diffGeoms = [filteredNodes[0]];
+        for(var i=1;i<filterable.length;i++){
+          // if (filterable[i].hasOwnProperty('p')){
+          if (prev[0]!=filterable[i].p[0] || prev[1]!=filterable[i].p[1]){
+            diffGeoms.push(filterable[i])
+            prev = filterable[i].p
+          }
+          // }
+        }
+        return diffGeoms;
+      }catch(e){
+        console.warn("\nNODE: "+nodeRef)
+        console.warn("PREV")
+        console.warn(prev)
+        console.warn("FILTERABLE")
+        console.warn(filterable)
+        throw e
+      }
+    }
+
+    throw "No Possible Nodes"
+    return false
   }
 
-  this.buildAllPossibleGeometries = function(nodeRefs, validSince, validUntil){
+  this.buildAllPossibleGeometries = function(nodeRefs, validSince, validUntil, majorVersionChangeset){
     var that = this;
-    console.warn(`Building all possible geometries between ${validSince} - ${validUntil}`)
+
+    // console.warn(`Building all possible geometries between ${validSince} - ${validUntil}`)
+
+    var majorVersion = [];
+    var minorVersions = [];
 
     //Iterate through the nodes, get the ones that matter
     nodeRefs.forEach(function(nodeRef){
-      var possibleNodes = that.getNodeVersions(nodeRef, validSince, validUntil);
-      if(possibleNodes){
-        //This is where we intelligently build out geometry versions.
-        //If there are multiple possible nodes, then we split out geometry...ugh.
+      var possibleNodes = that.getNodeVersions(nodeRef, validSince, validUntil, majorVersionChangeset);
+
+      if( possibleNodes ){
+        // console.log("YES")
+        majorVersion.push(Object.assign({},possibleNodes[0]));
+
+        // aPossibleGeometry.push(Object.assign{},possibleNodes[0]);
+
+        //If there are still nodes, then we have a new minorVersion
+        if (possibleNodes.length>1){
+          // aPossibleGeometry = JSON.parse(JSON.stringify(majorVersion));
+          // aPossibleGeometry.pop()//remove that node, add the fancy new one
+          // aPossibleGeometry.push(possibleNodes[1])
+          //There are more possibilities!
+          // console.log('minor version possible')
+          minorVersions.push("minorVs")
+        }
       }else{
-        console.log("NO NODES RETURNED")
+        throw "NO NODES RETURNED by getNodeVersions() for "+nodeRef
       }
-      console.log(possibleNodes)
+      // console.log(possibleNodes)
     })
 
-    return []
+    // console.warn("MAJOR VERSION: ",majorVersion)
+    // console.warn("minorVersions: ",minorVersions)
+
+    return {
+      majorVersion: majorVersion.map(function(g){return g.p})
+    }
   }
 
   this.buildGeometries = function(){
     var that = this;
     var validSince, validUntil;
 
-    console.log(that.nodeLocations)
+    // console.log(that.nodeLocations)
 
     for(var i in that.versions){
       validSince = false;
       validUntil = false;
-      console.warn(`\nGoing for Major Version: ${that.versions[i].i} with timestamp ${that.versions[i].t}`)
+      // console.warn(`\nGoing for Major Version: ${that.versions[i].i} with timestamp ${that.versions[i].t} by ${that.versions[i].h} c:${that.versions[i].c}`)
       //If it's not the first version, there is a previous major version that covers these changes, so only worry about changes since this version came to be.
       if(i>0){
         validSince = that.versions[i].t
@@ -103,31 +161,17 @@ module.exports = function(nodeLocations, history){
       }
 
       //Now construct all possible geometries for this Major Version:
-      var geometries = that.buildAllPossibleGeometries(that.versions[i].n, validSince, validUntil)
+      //Breaking Case: If it's not 'visible' and version has no nodes, then don't try to create a geometry...
+      if( that.versions[i].hasOwnProperty('n') ){
+        var geometries = that.buildAllPossibleGeometries(that.versions[i].n, validSince, validUntil,that.versions[i].c)
 
-      console.log(`Major Version: ${that.versions[i].i} has ${geometries.length} minor versions`)
+        if(geometries.majorVersion){
+          that.majorVersions[i] = geometries.majorVersion
+        }
+      }
+
+      // console.log(`Major Version: ${that.versions[i].i} has ${geometries.length} minor versions`)
 
     }
-
-
-      //
-      // // var changeset = histVersion.c.toString();
-      // // console.warn("Going for Changeset: " + changeset)
-      //
-      // // For the nodes in this version, construct all possible versions
-      // var coordinates = [];
-      // histVersion.n.forEach(function(nodeID){
-      //   console.warn("nodeID: "+ nodeID)
-      //   // var possibleNodes = that.nodeLocations[nodeID.toString()];
-      //   console.log(possibleNodes)
-      //   // if ( that.nodeLocations[nodeID.toString()].hasOwnProperty(changeset) ){
-      //   //   // console.log("GOT HERE")
-      //   //   // console.log(that.nodeLocations[nodeID])
-      //   //   coordinates.push( that.nodeLocations[nodeID][changeset]['p'] )
-      //   // }
-      //   // console.log(that.nodeLocations[ nodeID ])
-      // })
-      // // console.log(coordinates)
-
   }
 }

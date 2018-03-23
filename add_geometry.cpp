@@ -85,7 +85,7 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
 
         for (std::set<std::string>::iterator it=nodeRefs.begin(); it!=nodeRefs.end(); ++it){
 
-          std::cout << "NODE: " << *it << std::endl;
+          //std::cout << "NODE: " << *it << std::endl;
 
           rocksdb::Status status = store->get_node_locations(*it, &rocksEntry);
 
