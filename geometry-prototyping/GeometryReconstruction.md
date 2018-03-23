@@ -17,7 +17,10 @@ Ways
 To understand possible histories of ways, break them down into specific cases
 
 ### Versions
-There can only ever exist two cases regarding a version of a way: It is either (1) the current (latest) version or (2), there is another version.
+There can only ever exist three cases regarding a version of a way: It is either (1) the first version (and there is no previous version), (2) there is a previous version and a next version, or (3) it is the most recent version.
+
+### Case 1: It is the first version
+
 
 #### Case 1: A previous version
 version i+1 then has a timestamp. known as `t_validUntil`, at this time, this version is no longer valid. Associated with each version is a list of nodes that go with this version. With these two pieces of information, we can get a list of all possible geometries for this particular major version.
