@@ -1,19 +1,22 @@
 Reconstructing Historical Geometries
 ====================================
 
-This is a notoriously hard problem that partially explains _why_ this has not been done before.
 
-
-TODO: Explain version vs. minorVersion
+TODO: Explain version (majorVersion) vs. minorVersion
 
 
 Nodes
 -----
-OSM-Wayback stores locations with nodes themselves so reconstructing their geometries is afforded through `add_history`
+OSM-Wayback stores locations with nodes themselves so retrieving their geometries is afforded through `add_history`. To create valid geometries (or TopoJSON), you can feed this output directly into `node index.js`. For ways, you must run `add_geometry` first to build the `nodeLocations` object.
 
 
 Ways
 ----
+The function `add_geometry` adds a `nodeLocations` object to each way that includes all of the location histories for each of the nodes that the way has ever referenced.
+
+For now, these `add_geometry` does not actually process these geometries, it simply adds them to the objects.
+
+
 To understand possible histories of ways, break them down into specific cases
 
 ### Versions
