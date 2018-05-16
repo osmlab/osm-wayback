@@ -8,53 +8,75 @@ console.error("Beginning Geometry Reconstruction")
 
 process.stdin.pipe(require('split')()).on('data', processLine)
 
+// Create a geometry builder instance for the data on this line
 var GeometryBuilder = require('./geometry-builder.js')
 
 var geometries = 0;
 
 function processLine (line) {
+  //If line is empty, skip
   if (line==="") return;
 
-  // try{
+  object = JSON.parse(line);
 
-    object = JSON.parse(line);
+  //If there are nodeLocations, there is potential for multiple historical geometries (even if only 1 major Version)
+  if (object.hasOwnProperty('nodeLocations')){
 
-    if (object.hasOwnProperty('nodeLocations')){
-      if (object.properties.hasOwnProperty('@history') ){
-        var geometryBuilder = new GeometryBuilder(object.nodeLocations, object.properties['@history'], object.properties['@id']);
-
-        // console.warn(`\n\nOSM ID: ${object.properties['@id']}, hist versions: ${object.properties['@history'].length}`)
-        // console.warn("==================================================")
-
-        geometryBuilder.buildGeometries();
-        geometries++;
-
-        object.properties['@history'].forEach(function(histObj){
-          // if (histObj.i == 1){
-
-            if( geometryBuilder.historicalGeometries.hasOwnProperty(histObj.i) ){
-              console.log(JSON.stringify(
-                geometryBuilder.historicalGeometries[histObj.i])
-              )
-              // console.log(JSON.stringify(
-              //   {type:"Feature",
-              //    properties: {
-              //      'id':object.properties['@id'],
-              //      'v':histObj.i
-              //    },
-              //    geometry: { type:  "LineString",
-              //       coordinates: histObj.geometry
-              //     }
-              //   }));
-            }
-
-          // }
-
-        });
+    if ( object.properties.hasOwnProperty('@history') ){
+      var geometryBuilder = new GeometryBuilder({
+        'nodeLocations' : object.nodeLocations,
+        'history'       : object.properties['@history'],
+        'osmID'         : object.properties['@id']
+      })
+    }else{
+      //Object doesn't have a history value, confirm there aren't multiple versions of nodes in nodeLocations?
+      flag = false;
+      Object.keys(object.nodeLocations).forEach(function(nodeID){
+        if (Object.keys(object.nodeLocations[nodeId]).length > 1){
+          flag = true;
+        }
+      })
+      if(flag){
+        //TODO
+        console.error("\n Situation with version 1, no history, but multiple nodeLocations \n")
       }
     }
 
-    process.stderr.write(`\r${geometries} processed`);
+    //Build possible geometries from NodeLocations
+    geometryBuilder.buildGeometries();
+    geometries++;
+
+    //TODO: add geometries even if there is no history?
+
+    //Now that geometries are built, enrich history object with them
+    // object.properties['@history'].forEach(function(histObj){
+
+    // if (histObj.i == 1){
+      //
+      // if( geometryBuilder.historicalGeometries.hasOwnProperty(histObj.i) ){
+      //         console.log(JSON.stringify(
+      //           geometryBuilder.historicalGeometries[histObj.i])
+      //         )
+      //         console.log(JSON.stringify(
+      //           {type:"Feature",
+      //            properties: {
+      //              'id':object.properties['@id'],
+      //              'v':histObj.i
+      //            },
+      //            geometry: { type:  "LineString",
+      //               coordinates: histObj.geometry
+      //             }
+      //           }));
+      //       }
+      //
+      //     }
+  } //end if nodeLocations
+
+  process.stderr.write(`\r${geometries} processed`);
+
+} //end processLine
+
+
 
     // if (object.properties.hasOwnProperty('@history') ){
     //   //We've got an object with history, time to get to work:
@@ -88,5 +110,3 @@ function processLine (line) {
       // console.error(e.backtrace)
       // throw(e)
   // }
-
-}

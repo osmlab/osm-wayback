@@ -57,7 +57,7 @@ Timewise, here are some rough estimates, these were run  locally on a 2013 Macbo
 
 `build_lookup_index`
 
-| .osh.pbf file | Nodes | INDEX   | ~ Time (seconds)| 
+| .osh.pbf file | Nodes | INDEX   | ~ Time (seconds)|
 |---------------|-------|---------|-----------------|
 | ~ 7 MB        | 0.5M  | ~ 50 MB |  1           |
 | ~ 50 MB       | 5M    | ~ 650 MB|  13
@@ -67,7 +67,7 @@ Timewise, here are some rough estimates, these were run  locally on a 2013 Macbo
 <hr>
 `add_history`
 
-| GeoJSON Features | Additional history<br>versions added| Time (seconds)| 
+| GeoJSON Features | Additional history<br>versions added| Time (seconds)|
 |------------------|---------------------|---------------|
 | 56k              | 95k                 | 4             |
 | 820k             | 973k                | 57            |
