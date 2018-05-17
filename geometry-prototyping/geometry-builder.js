@@ -51,8 +51,9 @@ module.exports = function(osmObject){
     //If there's only one version of the node, use it (always)
     if (nodeVersions.length==1){ return nodeVersions; }//
 
-    //Be prepared to fall through and return the closest node less than validSince.
+    //Always include the previous version of the node; especially within changeset length threshold
     var prevNode = nodeVersions[0]; //First version of the node
+    var prevNodeNotAdded;
     var filteredNodes = []
 
     if(validSince){
@@ -64,6 +65,9 @@ module.exports = function(osmObject){
           filteredNodes.push(node)
         }else if (node.t >= validSince){
           filteredNodes.push(node)
+        }else{
+          //Not the same changeset and not >= validSince
+          prevNodeNotAdded = Object.assign({},node);
         }
 
         prevNode = node;
@@ -72,6 +76,14 @@ module.exports = function(osmObject){
       if(filteredNodes.length==0){
         return [prevNode];
       }
+
+      //If the first node in the list is TOO new, add prevNodeNotAdded
+      if(prevNodeNotAdded){
+        if(filteredNodes[0].t > validSince+CHANGESET_THRESHOLD){
+          filteredNodes.unshift(prevNodeNotAdded)
+        }
+      }
+
     }else{
       filteredNodes = nodeVersions;
     }
@@ -95,7 +107,9 @@ module.exports = function(osmObject){
     if (filterable.length==1){
       return filterable; //Only 1 possible case, return it
     }else{
-      //OVER RIDE 2: If there is not an actual geometry change, then don't return it!
+      return filterable;
+
+      /*OVER RIDE 2: If there is not an actual geometry change, then don't return it!
       try{
         var prev = filterable[0].p
         var diffGeoms = [filteredNodes[0]];
@@ -116,6 +130,7 @@ module.exports = function(osmObject){
         console.warn(filterable)
         throw e
       }
+      */
     }
 
     //If we get to this condition, then there are no possible nodes to satisfy the condition
@@ -178,11 +193,64 @@ module.exports = function(osmObject){
 
     //Take the first version
     var majorVersion = versions.map(function(a){return a[0]})
+    var minorVersions;
 
     //Expand out the versions array
     var maxLen = _.max(versions.map(function(a){return a.length}))
-
     console.warn("\n" + maxLen + "\n")
+
+
+    if(maxLen>1){         //There are minor versions!
+      minorVersions = [[]];
+
+      //Iterate through each of the nodes, building geometries as they exist.
+      for(var i=0; i<versions.length; i++){
+        //If there is only 1 node, add it to ALL of the minorVersions;
+        if(versions[i].length==1 ){
+          for(var j=0; j<minorVersions.length; j++){
+            minorVersions[j].push(versions[i][0])
+          }
+        }else{
+
+          var prevNode = versions[i][0];
+
+          //To add to the minorVersions
+          var newPossibilities = [];
+
+          //Iterate through all possible versions of THIS node
+          for(var j=0; j<versions[i].length; j++){
+
+            //Add THIS possibility to all current minorVersions;
+            for(var k=0; k<minorVersions.length; k++){
+              // var currentTimestamp = minorVersions[k][0].t;
+
+              var thisBaseGeom = minorVersions[k].slice(0); //Clone of currentBaseGeom
+
+              thisBaseGeom.push(versions[i][j])
+
+              newPossibilities.push( thisBaseGeom.slice(0) );
+
+            }
+            prevNode = versions[i][j];
+
+            minorVersions = newPossibilities.slice(0);
+            // newPossibilities.forEach(function(currentGeom){
+            //   minorVersions.push(currentGeom.slice(0))
+            // })
+          }
+        }
+      }
+      if(DEBUG){
+        console.warn("Minor Versions: ")
+        minorVersions.forEach(function(mV){
+          console.warn(mV.length)
+          console.warn(mV.map(function(n){return n.h}).join(" > "))
+        })
+      }
+
+    }
+
+
 
 
     // if(DEBUG){
