@@ -212,34 +212,26 @@ module.exports = function(osmObject){
           }
         }else{
 
-          var prevNode = versions[i][0];
-
-          //To add to the minorVersions
+          //minorVersions is going to grow with all permutations...
           var newPossibilities = [];
 
-          //Iterate through all possible versions of THIS node
-          for(var j=0; j<versions[i].length; j++){
+          //For each of the CURRENT minorVersions, add one of the new ones.
+          for(var k=0; k<minorVersions.length; k++){
 
-            //Add THIS possibility to all current minorVersions;
-            for(var k=0; k<minorVersions.length; k++){
-              // var currentTimestamp = minorVersions[k][0].t;
-
-              var thisBaseGeom = minorVersions[k].slice(0); //Clone of currentBaseGeom
-
-              thisBaseGeom.push(versions[i][j])
-
-              newPossibilities.push( thisBaseGeom.slice(0) );
-
+            for(var j=0; j<versions[i].length; j++){
+              //Reset baseGeom;
+              var baseGeom = minorVersions[k].slice(0);
+              //Add this version
+              baseGeom.push(versions[i][j])
+              //Add it to newPossibilities
+              newPossibilities.push(baseGeom)
             }
-            prevNode = versions[i][j];
-
-            minorVersions = newPossibilities.slice(0);
-            // newPossibilities.forEach(function(currentGeom){
-            //   minorVersions.push(currentGeom.slice(0))
-            // })
           }
+          //Now reset minorVersions to be newPossibilities;
+          minorVersions = newPossibilities;
         }
       }
+      //OKAY! NOW! How many are valid?
       if(DEBUG){
         console.warn("Minor Versions: ")
         minorVersions.forEach(function(mV){
