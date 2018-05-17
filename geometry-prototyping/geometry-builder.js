@@ -1,6 +1,7 @@
   var _ = require('lodash');
 
 const MINOR_VERSION_SECOND_THRESHOLD = 60*15; //15 minutes
+const CHANGESET_THRESHOLD            = 60*1   // 1 minute
 const DEBUG = true;
 
 module.exports = function(osmObject){
@@ -138,18 +139,16 @@ module.exports = function(osmObject){
 
     var validUntil = args.validUntil;
     var validSince = args.validSince;
-    var changeset  = args.majorVersionChangeset;
+    var changeset  = args.changeset;
 
     var that = this;
 
     if (DEBUG){
       console.warn(`  Building all possible geometries between ${validSince} - ${validUntil}`)
+      console.warn(`  (${(new Date(validSince*1000)).toISOString()} - ${(new Date(validUntil*1000)).toISOString()})`)
     }
 
-    var majorVersion  = []; //There should only ever be 1 major version?
-    var minorVersions = [];
-
-    var aPossibleGeometry = [];
+    var versions  = []
 
     //Iterate through the nodes associated with this version
     args.nodeRefs.forEach(function(nodeRef){
@@ -161,37 +160,38 @@ module.exports = function(osmObject){
         validUntil: validUntil,
         changeset: changeset});
 
+      //If nodes were returned, just add them to the array
       if( possibleNodes ){
-        majorVersion.push(Object.assign({}, possibleNodes[0]));
+        versions.push(possibleNodes.slice(0)) //Cloning this array
 
-        aPossibleGeometry.push(Object.assign({},possibleNodes[0]));
-
-        //If there are still nodes, then we have a new minorVersion
-        if (possibleNodes.length>1){
-
-          minorVersions.push(aPossibleGeometry)
-
-          //Start at this new version, and create new possible versions
-          for(var i=1; i<possibleNodes.length; i++){
-            console.warn('Minor Version!')
-          }
-
-          //TODO: Build all possible minor versions
-          // aPossibleGeometry = JSON.parse(JSON.stringify(majorVersion));
-          // aPossibleGeometry.pop()//remove that node, add the fancy new one
-          // aPossibleGeometry.push(possibleNodes[1])
-          //There are more possibilities!
-          // console.log('minor version possible')
-          minorVersions.push("minorVs")
-        }
       }else{
         throw "NO NODES RETURNED by getNodeVersions() for " + nodeRef
       }
     })
 
+    for(var i in versions){
+      console.warn("--" + args.nodeRefs[i] + "---");
+      versions[i].forEach(function(v_){
+        console.warn(v_.i, v_.c, v_.t, v_.h)
+      })
+    }
+
+    //Take the first version
+    var majorVersion = versions.map(function(a){return a[0]})
+
+    //Expand out the versions array
+    var maxLen = _.max(versions.map(function(a){return a.length}))
+
+    console.warn("\n" + maxLen + "\n")
+
+
+    // if(DEBUG){
+    //   console.warn(minorVersion)
+    // }
+
     return {
       majorVersion: majorVersion.map(function(g){return g.p}),
-      minorVersions: minorVersions
+      minorVersions: []
     }
   }
 
@@ -217,7 +217,8 @@ module.exports = function(osmObject){
       validUntil = false;
 
       if(DEBUG){
-        console.warn(`  Going for Major Version: ${that.versions[i].i} with timestamp ${that.versions[i].t} by ${that.versions[i].h} c:${that.versions[i].c}`)
+        console.warn(`  Going for Major Version: ${that.versions[i].i} with timestamp ${that.versions[i].t} (${(new Date(that.versions[i].t*1000)).toISOString()})
+        by ${that.versions[i].h} c:${that.versions[i].c}`)
       }
 
       //If it's not the first entry, there is a previous major version that covers these changes, so only worry about changes since this version came to be.
@@ -226,7 +227,7 @@ module.exports = function(osmObject){
       }
       // //If there's another version to come, set validUntil to the next version
       if(i < that.versions.length-1){
-        validUntil = that.versions[i+1].t
+        validUntil = that.versions[i+1].t - CHANGESET_THRESHOLD
       }
 
       //Now construct all possible geometries for this Major Version:
@@ -263,7 +264,7 @@ module.exports = function(osmObject){
       }
 
       if(DEBUG){
-        console.warn(`Major Version: ${that.versions[i].i} has ${geometries.minorVersions.length} minor versions`)
+        // console.warn(`Major Version: ${that.versions[i].i} has ${geometries.minorVersions.length} minor versions`)
       }
     }
   }
