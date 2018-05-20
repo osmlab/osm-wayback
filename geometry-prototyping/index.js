@@ -46,8 +46,19 @@ function processLine (line) {
     geometryBuilder.buildGeometries();
     geometries++;
 
-    //Now print out the geometries!
-    console.log(JSON.stringify(geometryBuilder.historicalGeometries,null,2))
+    //Construct a new, minorVersion enabled historical version of the object:
+    var geometryType = object.geometry.type;
+    Object.keys(geometryBuilder.historicalGeometries).forEach(function(majorVersionKey){
+      for(var i in geometryBuilder.historicalGeometries[majorVersionKey]){
+
+        if(geometryType==='Polygon'){
+          geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.type = "Polygon"
+          geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates = [geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates]
+        }
+
+        console.log(JSON.stringify(geometryBuilder.historicalGeometries[majorVersionKey][i]))
+      }
+    })
 
     //TODO: add geometries even if there is no history?
 

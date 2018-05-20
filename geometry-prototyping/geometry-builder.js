@@ -2,7 +2,7 @@ var _ = require('lodash');
 
 const MINOR_VERSION_SECOND_THRESHOLD = 60*15; //15 minutes
 const CHANGESET_THRESHOLD            = 60*1   // 1 minute
-const DEBUG = true;
+const DEBUG = 0;
 
 module.exports = function(osmObject){
 
@@ -184,12 +184,15 @@ this.buildAllPossibleVersionGeometries = function(args){
     }
   })
 
-  for(var i in versions){
-    console.warn("--" + args.nodeRefs[i] + "---");
-    versions[i].forEach(function(v_){
-      console.warn(v_.i, v_.c, v_.t, v_.h)
-    })
+  if(DEBUG){
+    for(var i in versions){
+      console.warn("--" + args.nodeRefs[i] + "---");
+      versions[i].forEach(function(v_){
+        console.warn(v_.i, v_.c, v_.t, v_.h)
+      })
+    }
   }
+
 
   //Take the first version
   var majorVersion = versions.map(function(a){return a[0]})
@@ -203,7 +206,8 @@ this.buildAllPossibleVersionGeometries = function(args){
 
   //Expand out the versions array
   var maxLen = _.max(versions.map(function(a){return a.length}))
-  console.warn("\n" + maxLen + "\n")
+
+  if(DEBUG){console.warn("\n" + maxLen + "\n")}
 
 
   if(maxLen>1){         //There are minor versions!
@@ -349,7 +353,7 @@ this.buildGeometries = function(){
         that.historicalGeometries[majorVersionNumber] = [{
           type:"Feature",
           properties:{
-            '@version': i,
+            '@version': majorVersionNumber,
             '@minorVersion': 0,
             '@validSince': that.versions[i].t,
             '@validUntil': (i<that.versions.length-1)? that.versions[i+1].t: null
@@ -366,8 +370,8 @@ this.buildGeometries = function(){
         //Reset the validUntil of the major Version with minorVersion_1
         that.historicalGeometries[majorVersionNumber][0].properties['@validUntil'] = geometries.minorVersions[0]["validSince"]
 
-        for(var i=0; i < geometries.minorVersions.length; i++){
-          var mV = geometries.minorVersions[i];
+        for(var j=0; j < geometries.minorVersions.length; j++){
+          var mV = geometries.minorVersions[j];
           that.historicalGeometries[majorVersionNumber].push({
             type:"Feature",
             geometry:{
@@ -375,19 +379,23 @@ this.buildGeometries = function(){
               coordinates: mV.coordinates
             },
             properties:{
-              '@version':i,
+              '@version':majorVersionNumber,
               '@minorVersion':mV.minorVersion,
               '@validSince':mV.validSince,
               '@changeset':mV.changeset,
               '@user':mV.user,
-              '@validUntil': (i<geometries.minorVersions.length-1)? geometries.minorVersions[i+1].validSince: null
+              '@validUntil': (j<geometries.minorVersions.length-1)? geometries.minorVersions[j+1].validSince: null
             }
           })
         }
-        //If there are minorVersions, we put them all together and create a new feature collection
+
+        //If there is another major version coming afer this one... reset the LAST value of minor Versions...
+        if (i<that.versions.length-1){
+          that.historicalGeometries[majorVersionNumber][that.historicalGeometries[majorVersionNumber].length-1].properties['@validUntil'] = that.versions[i+1].t
+        }
 
         if(DEBUG){
-          console.warn(`Major Version: ${that.versions[i].i} has ${geometries.minorVersions.length} minor versions`)
+          console.warn(`Major Version: ${majorVersionNumber} has ${geometries.minorVersions.length} minor versions`)
         }
       }
     }
