@@ -46,6 +46,9 @@ function processLine (line) {
     geometryBuilder.buildGeometries();
     geometries++;
 
+    //Now print out the geometries!
+    console.log(JSON.stringify(geometryBuilder.historicalGeometries,null,2))
+
     //TODO: add geometries even if there is no history?
 
     //Now that geometries are built, enrich history object with them
