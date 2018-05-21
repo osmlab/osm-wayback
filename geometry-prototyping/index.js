@@ -6,22 +6,18 @@ var topojson = require("topojson");
 
 const DEBUG=1;
 
-const WRITE_EVERY_GEOMETRY=1;
+var INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS = 0;
+var INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS = 0;
+var INCLUDE_MAJOR_DIFFS                       = 1;
 
-const WRITE_TOPOJSON_HISTORY=1;
+//ONLY ONE OF THESE SHOULD BE SET
+var WRITE_HISTORY_COMPLETE_OBJECT   = 1;
+var WRITE_EVERY_GEOMETRY            = 1;
+var WRITE_TOPOJSON_HISTORY          = 1;
 
-const INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS=0;
-
-const INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS=0;
-
-const INCLUDE_MAJOR_DIFFS=1;
-
-const WRITE_HISTORY_COMPLETE_OBJECT=1;
-
-var allGeometriesByteSize = 0;
+var allGeometriesByteSize               = 0;
 var historyCompleteSingleObjectByteSize = 0;
-var topojsonHistoryByteSize = 0;
-
+var topojsonHistoryByteSize             = 0;
 var string;
 
 console.error("Beginning Geometry Reconstruction")
@@ -29,10 +25,10 @@ console.error("Beginning Geometry Reconstruction")
 process.stdin.pipe(require('split')())
   .on('data', processLine)
   .on('end',function(){
-    process.stderr.write(`\n\nOutput Sizes (total string length):`);
-    process.stderr.write(`\n--Individual Geometries    : ${allGeometriesByteSize}`);
-    process.stderr.write(`\n--History Object           : ${historyCompleteSingleObjectByteSize}`);
-    process.stderr.write(`\n--History Object (topojson): ${topojsonHistoryByteSize}\n\n`);
+    process.stderr.write(`\n\nOutput Sizes (based on string length):`);
+    process.stderr.write(`\n--Individual Geometries    : ${ (allGeometriesByteSize / (1024*1024)).toFixed(1)} MB`);
+    process.stderr.write(`\n--History Object           : ${ (historyCompleteSingleObjectByteSize / (1024*1024)).toFixed(1)} MB`);
+    process.stderr.write(`\n--History Object (topojson): ${ (topojsonHistoryByteSize / (1024*1024)).toFixed(1)} MB\n\n`);
   })
 
 // Create a geometry builder instance for the data on this line
@@ -159,7 +155,6 @@ function processLine (line) {
         string = JSON.stringify(object)
         console.log(string)
         topojsonHistoryByteSize += string.length;
-
       }
     }
 
