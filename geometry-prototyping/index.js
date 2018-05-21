@@ -8,7 +8,9 @@ const DEBUG=1;
 
 var INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS = 0;
 var INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS = 0;
-var INCLUDE_MAJOR_DIFFS                       = 1;
+var INCLUDE_MAJOR_DIFFS                       = 0;
+
+var GEOMETRY_ONLY                             = 1;
 
 //ONLY ONE OF THESE SHOULD BE SET
 var WRITE_HISTORY_COMPLETE_OBJECT   = 1;
@@ -99,7 +101,12 @@ function processLine (line) {
             properties: geometryBuilder.historicalGeometries[majorVersionKey][i].properties
           }
 
-
+          if(GEOMETRY_ONLY){
+            minorVersion.properties = {
+              '@validSince':geometryBuilder.historicalGeometries[majorVersionKey][i].properties['@validSince'],
+              '@validUntil':geometryBuilder.historicalGeometries[majorVersionKey][i].properties['@validUntil']
+            }
+          }
 
           if(i==0){
             if (INCLUDE_MAJOR_DIFFS){
@@ -142,6 +149,13 @@ function processLine (line) {
       object.properties['@history'] = newHistoryObject;
       delete object.nodeLocations;
       delete object.properties['@way_nodes']
+
+      if(GEOMETRY_ONLY){
+        object.properties = {
+          '@validSince' : object.properties['@timestamp'],
+          '@history'    : object.properties['@history']
+        }
+      }
 
       if(WRITE_HISTORY_COMPLETE_OBJECT){
         string = JSON.stringify(object)
