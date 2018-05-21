@@ -38,7 +38,7 @@ this.getNodeVersions = function(args){
   nodeVersionsByChangeset = that.nodeLocations[nodeRef.toString()];
 
   if (nodeVersionsByChangeset==undefined){
-    console.error("No version of Node");
+    console.error("No version of Node: "+nodeRef.toString());
     return null;
   }
 
@@ -48,8 +48,17 @@ this.getNodeVersions = function(args){
   //Filter to only have geometries... (not representing deleted geometries atm)
   nodeVersions = nodeVersions.filter(function(n){return n.hasOwnProperty('p')})
 
+  if (nodeVersions.length==0){
+    return false;
+    if(DEBUG){
+      console.error("LIKELY REDACTED")
+    }
+  }
+
   //If there's only one version of the node, use it (always)
-  if (nodeVersions.length==1){ return nodeVersions; }//
+  if (nodeVersions.length==1){
+    return nodeVersions;
+  }
 
   //Always include the previous version of the node; especially within changeset length threshold
   var prevNode = nodeVersions[0]; //First version of the node
@@ -101,18 +110,22 @@ this.getNodeVersions = function(args){
 
     if(filterable.length==0){
       //If this removed all nodes, then return the most recent version; there is likely a _deleted_ version later
-      return [prevNode]
+      if (prevNode){
+        return [prevNode]
+      }else{
+        return false;
+      }
     }
   }
   if (filterable.length==1){
     return filterable; //Only 1 possible case, return it
   }else{
-    return filterable;
 
-    /*OVER RIDE 2: If there is not an actual geometry change, then don't return it!
+    //OVER RIDE 2: If there aren't any different geometries, don't return it... too expensive
     try{
+      var diffGeoms = [filterable[0]]; //basic case, just 1
+
       var prev = filterable[0].p
-      var diffGeoms = [filteredNodes[0]];
 
       for(var i=1;i<filterable.length;i++){
 
@@ -130,11 +143,11 @@ this.getNodeVersions = function(args){
       console.warn(filterable)
       throw e
     }
-    */
+
   }
 
   //If we get to this condition, then there are no possible nodes to satisfy the condition
-  throw "No Possible Nodes"
+  // throw "No Possible Nodes"
   return false
 }
 
@@ -178,9 +191,10 @@ this.buildAllPossibleVersionGeometries = function(args){
     //If nodes were returned, just add them to the array
     if( possibleNodes ){
       versions.push(possibleNodes.slice(0)) //Cloning this array
-
     }else{
-      throw "NO NODES RETURNED by getNodeVersions() for " + nodeRef
+      if(DEBUG){
+        console.warn("NO NODES RETURNED by getNodeVersions() for " + nodeRef);
+      }
     }
   })
 
@@ -192,7 +206,6 @@ this.buildAllPossibleVersionGeometries = function(args){
       })
     }
   }
-
 
   //Take the first version
   var majorVersion = versions.map(function(a){return a[0]})
@@ -209,7 +222,6 @@ this.buildAllPossibleVersionGeometries = function(args){
 
   if(DEBUG){console.warn("\n" + maxLen + "\n")}
 
-
   if(maxLen>1){         //There are minor versions!
     minorVersions = [[]];
 
@@ -225,16 +237,28 @@ this.buildAllPossibleVersionGeometries = function(args){
         //minorVersions is going to grow with all permutations...
         var newPossibilities = [];
 
-        //For each of the CURRENT minorVersions, add one of the new ones.
+        //For each of the CURRENT minorVersions, add one of the new ones (within reason).
         for(var k=0; k<minorVersions.length; k++){
 
+          // var lastTime = versions[i][0].t
           for(var j=0; j<versions[i].length; j++){
             //Reset baseGeom;
             var baseGeom = minorVersions[k].slice(0);
-            //Add this version
-            baseGeom.push(versions[i][j])
-            //Add it to newPossibilities
-            newPossibilities.push(baseGeom)
+
+            //Always do it for the first version
+            if (j<1){
+              baseGeom.push(versions[i][j])
+              newPossibilities.push(baseGeom)
+            }else if (baseGeom.length < 5){
+              //If the size of the geometry isn't insane
+              baseGeom.push(versions[i][j])
+              newPossibilities.push(baseGeom)
+
+            }else if (k==minorVersions.length-1 && j==versions[i].length-1){
+              //Just asdd the last one
+              baseGeom.push(versions[i][j])
+              newPossibilities.push(baseGeom)
+            }
           }
         }
         //Now reset minorVersions to be newPossibilities;
@@ -251,12 +275,12 @@ this.buildAllPossibleVersionGeometries = function(args){
           maxNode = mV[idx]
         }
       }
-      mapped.push([Object.assign({},maxNode), mV])
+      mapped.push([maxNode, mV])
     })
 
-    sortedMinorVersions = _.sortBy(mapped, function(x){return x[0].t})
+    minorVersions = undefined;
 
-    // console.warn(sortedMinorVersions.map(function(x){return x[0].t}))
+    sortedMinorVersions = _.sortBy(mapped, function(x){return x[0].t})
 
     if(DEBUG){
       console.warn("Minor Versions: ")
@@ -279,6 +303,7 @@ this.buildAllPossibleVersionGeometries = function(args){
           changeset: sorted[0].c,
           validSince: sorted[0].t,
           user:       sorted[0].h,
+          uid:        sorted[0].u,
           coordinates:mV.map(function(p){return p.p})
         })
         minorVersionIdx++;
@@ -355,6 +380,9 @@ this.buildGeometries = function(){
           properties:{
             '@version': majorVersionNumber,
             '@minorVersion': 0,
+            '@user' : that.versions[i].h,
+            '@changeset' : that.versions[i].c,
+            '@uid' : that.versions[i].u,
             '@validSince': that.versions[i].t,
             '@validUntil': (i<that.versions.length-1)? that.versions[i+1].t: null
           },
@@ -365,7 +393,7 @@ this.buildGeometries = function(){
         }]
       }
 
-      if (geometries.minorVersions){
+      if (geometries.minorVersions && geometries.minorVersions.length>0){
         //Iterate through the minorVersions, amending the validUntil fields...
         //Reset the validUntil of the major Version with minorVersion_1
         that.historicalGeometries[majorVersionNumber][0].properties['@validUntil'] = geometries.minorVersions[0]["validSince"]
@@ -384,6 +412,7 @@ this.buildGeometries = function(){
               '@validSince':mV.validSince,
               '@changeset':mV.changeset,
               '@user':mV.user,
+              '@uid' :mV.uid,
               '@validUntil': (j<geometries.minorVersions.length-1)? geometries.minorVersions[j+1].validSince: null
             }
           })

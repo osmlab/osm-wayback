@@ -1,12 +1,39 @@
 /*
-
   Read in a stream of GeoJSON (history enriched ... and process geometries)
-
 */
+
+var topojson = require("topojson");
+
+const DEBUG=1;
+
+const WRITE_EVERY_GEOMETRY=1;
+
+const WRITE_TOPOJSON_HISTORY=1;
+
+const INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS=0;
+
+const INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS=0;
+
+const INCLUDE_MAJOR_DIFFS=1;
+
+const WRITE_HISTORY_COMPLETE_OBJECT=1;
+
+var allGeometriesByteSize = 0;
+var historyCompleteSingleObjectByteSize = 0;
+var topojsonHistoryByteSize = 0;
+
+var string;
 
 console.error("Beginning Geometry Reconstruction")
 
-process.stdin.pipe(require('split')()).on('data', processLine)
+process.stdin.pipe(require('split')())
+  .on('data', processLine)
+  .on('end',function(){
+    process.stderr.write(`\n\nOutput Sizes (total string length):`);
+    process.stderr.write(`\n--Individual Geometries    : ${allGeometriesByteSize}`);
+    process.stderr.write(`\n--History Object           : ${historyCompleteSingleObjectByteSize}`);
+    process.stderr.write(`\n--History Object (topojson): ${topojsonHistoryByteSize}\n\n`);
+  })
 
 // Create a geometry builder instance for the data on this line
 var GeometryBuilder = require('./geometry-builder.js')
@@ -17,7 +44,7 @@ function processLine (line) {
   //If line is empty, skip
   if (line==="") return;
 
-  object = JSON.parse(line);
+  var object = JSON.parse(line);
 
   //If there are nodeLocations, there is potential for multiple historical geometries (even if only 1 major Version)
   if (object.hasOwnProperty('nodeLocations')){
@@ -47,80 +74,120 @@ function processLine (line) {
     geometries++;
 
     //Construct a new, minorVersion enabled historical version of the object:
+    var newHistoryObject = []
+
     var geometryType = object.geometry.type;
-    Object.keys(geometryBuilder.historicalGeometries).forEach(function(majorVersionKey){
-      for(var i in geometryBuilder.historicalGeometries[majorVersionKey]){
 
-        if(geometryType==='Polygon'){
-          geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.type = "Polygon"
-          geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates = [geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates]
+    //Iterate through the current @history, reconstructing the geometries
+    if(object.properties.hasOwnProperty('@history')){
+
+      var majorVersionTags = {};
+
+      object.properties['@history'].forEach(function(histObj){
+
+        //Reconstruct the base properties for this Major Version
+        majorVersionTags = reconstructMajorOSMTags(majorVersionTags, histObj)
+
+        var majorVersionKey = histObj.i;
+        for(var i in geometryBuilder.historicalGeometries[majorVersionKey]){
+
+          //Reconstruct Polygons from LineStrings, if necessary?
+          if(geometryType==="Polygon" || geometryType==="MultiPolygon"){
+            geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.type = "Polygon"
+            geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates = [geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates]
+          }
+
+          var minorVersion = {
+            type:"Feature",
+            geometry: geometryBuilder.historicalGeometries[majorVersionKey][i].geometry,
+            properties: geometryBuilder.historicalGeometries[majorVersionKey][i].properties
+          }
+
+
+
+          if(i==0){
+            if (INCLUDE_MAJOR_DIFFS){
+              minorVersion.properties = {...minorVersion.properties, ...histObj};
+              minorVersion.properties['@user']      = histObj.h;
+              delete minorVersion.properties.h;
+              minorVersion.properties['@uid']       = histObj.u;
+              delete minorVersion.properties.u;
+              minorVersion.properties['@changeset'] = histObj.c;
+              delete minorVersion.properties.c;
+              minorVersion.properties['@version']   = histObj.i;
+              delete minorVersion.properties.i;
+              delete minorVersion.properties.t;
+            }
+            if(INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS){
+              minorVersion.properties = {...minorVersion.properties, ...majorVersionTags}
+              minorVersion.properties['@id'] = object.properties['@id']
+            }
+          }else{
+            if (INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS){
+              minorVersion.properties = {...minorVersion.properties, ...majorVersionTags}
+              minorVersion.properties['@id'] = object.properties['@id']
+            }
+          }
+
+          delete minorVersion.properties.n;
+
+          if (WRITE_EVERY_GEOMETRY){
+            string = JSON.stringify(minorVersion)
+            allGeometriesByteSize += string.length;
+            console.log(string)
+          }
+
+          newHistoryObject.push(minorVersion)
+
         }
+      })
 
-        console.log(JSON.stringify(geometryBuilder.historicalGeometries[majorVersionKey][i]))
+      //Fix up the history of the original object?
+      object.properties['@history'] = newHistoryObject;
+      delete object.nodeLocations;
+      delete object.properties['@way_nodes']
+
+      if(WRITE_HISTORY_COMPLETE_OBJECT){
+        string = JSON.stringify(object)
+        historyCompleteSingleObjectByteSize += string.length;
+        console.log(string)
       }
-    })
+
+      //Encode TopoJSON
+      if(WRITE_TOPOJSON_HISTORY){
+        object.properties['@history'] = topojson.topology(newHistoryObject)
+        string = JSON.stringify(object)
+        console.log(string)
+        topojsonHistoryByteSize += string.length;
+
+      }
+    }
 
     //TODO: add geometries even if there is no history?
-
-    //Now that geometries are built, enrich history object with them
-    // object.properties['@history'].forEach(function(histObj){
-
-    // if (histObj.i == 1){
-      //
-      // if( geometryBuilder.historicalGeometries.hasOwnProperty(histObj.i) ){
-      //         console.log(JSON.stringify(
-      //           geometryBuilder.historicalGeometries[histObj.i])
-      //         )
-      //         console.log(JSON.stringify(
-      //           {type:"Feature",
-      //            properties: {
-      //              'id':object.properties['@id'],
-      //              'v':histObj.i
-      //            },
-      //            geometry: { type:  "LineString",
-      //               coordinates: histObj.geometry
-      //             }
-      //           }));
-      //       }
-      //
-      //     }
-  } //end if nodeLocations
+  }
 
   process.stderr.write(`\r${geometries} processed`);
+}
 
-} //end processLine
+/**
+ *  Helper function to reconstruct properties between major Versions from diffs
+*/
+function reconstructMajorOSMTags(baseObject,newObject){
 
-
-
-    // if (object.properties.hasOwnProperty('@history') ){
-    //   //We've got an object with history, time to get to work:
-    //
-    //   var id = object.properties['@id']
-    //
-    //   object.properties['@history'].forEach(function(histObj){
-    //
-    //     //Node references, begin!
-    //     // if ( histObj.hasOwnProperty("n") ){
-    //     //   histObj.n.forEach(function(nodeRef){
-    //     //     // var lookUp = nodeRef.toString() + "!" + "1"
-    //     //     // console.warn(lookUp)
-    //     //     // var v1 = db.get('nodes',lookUp)
-    //     //     // console.warn(v1)
-    //     //
-    //     //     // console.log(nodeRef)
-    //     //     // for (it.seek(nodeRef+"1"+"1"); it.valid(); it.next()) {
-    //     //       // console.log(iter.key(), iter.value())
-    //     //     // }
-    //     //   })
-    //     // }
-    //   })
-    // }
-
-    //Print the object back to the console.
-    // console.log(JSON.stringify(object))
-
-  // }catch(e){
-      // console.error(e)
-      // console.error(e.backtrace)
-      // throw(e)
-  // }
+  if (newObject.hasOwnProperty('aA') && newObject.aA){
+    Object.keys(newObject.aA).forEach(function(key){
+      baseObject[key] = newObject.aA[key]
+    })
+  }
+  if (newObject.hasOwnProperty('aM') && newObject.aM){
+    Object.keys(newObject.aM).forEach(function(key){
+      baseObject[key] = newObject.aM[key][1]
+    })
+  }
+  if (newObject.hasOwnProperty('aD') && newObject.aD){
+    Object.keys(newObject.aD).forEach(function(key){
+      delete baseObject[key]
+    })
+  }
+  return baseObject
+}
