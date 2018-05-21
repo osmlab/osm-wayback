@@ -3,7 +3,7 @@ Constructing Historic Geometries with RocksDB + NodeJS
 
 These scripts expand the JSON output from OSM-Wayback's `add_geometry` into actual GeoJSON geometries per version.
 
-When finished, one should be able to run: 
+When finished, one should be able to run:
 
 `cat <HISTORY.geojsonseq> | add_geometry <ROCKSDB> | node index.js > <HISTORY WITH GEOMETRIES> `
 

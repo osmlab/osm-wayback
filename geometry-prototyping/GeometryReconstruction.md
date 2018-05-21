@@ -1,8 +1,9 @@
 Reconstructing Historical Geometries
 ====================================
 
-
-TODO: Explain version (majorVersion) vs. minorVersion
+majorVersion vs. minorVersion
+-----------------------------
+Whenever an OSM object is edited, the version number is incremented. This number keeps a record of how many times the attributes of an object have been changed. This number does not, however, count geometry-only changes. Since individual nodes have no reference to any ways that may contain them,
 
 
 Nodes
@@ -14,46 +15,22 @@ Ways
 ----
 The function `add_geometry` adds a `nodeLocations` object to each way that includes all of the location histories for each of the nodes that the way has ever referenced.
 
-For now, these `add_geometry` does not actually process these geometries, it simply adds them to the objects.
+For now, `add_geometry` does not actually process these geometries, it simply adds them to the objects.
 
-
-To understand possible histories of ways, break them down into specific cases
+To understand possible histories of ways, break them down into specific cases:
 
 ### Versions
-There can only ever exist three cases regarding a version of a way: It is either (1) the first version (and there is no previous version), (2) there is a previous version and a next version, or (3) it is the most recent version.
+There are 3 possible cases regarding a (major) version of a way. It is either (1) the first version of the way, (2) an edited version, but not the most recent, or (3) is the most recent version.
 
-### Case 1: It is the first version
+##### Case 1: It is the first version
+The timestamp of the subsequent version is the latest potential cut-off for this major version, this becomes the `validUntil` time. Any  referenced nodes edited before this `validUntil` create potential minor versions.
 
+##### Case 2: A previous version and a next version
+The timestamp of the major version becomes `validSince` and then the same process for the first version is followed; the timestamp of the subsequent edit becomes `validUntil` and any nodes edited between these two times create potential minor versions.
 
-#### Case 1: A previous version
-version i+1 then has a timestamp. known as `t_validUntil`, at this time, this version is no longer valid. Associated with each version is a list of nodes that go with this version. With these two pieces of information, we can get a list of all possible geometries for this particular major version.
+##### Case 3: This is the most recent version of the way
+There is no `validUntil` attribute, it is currently valid. `validSince` is the timestamp of this major version. Any referenced nodes edited after `validUntil` create potential minor versions.
 
-`allPossibleGeometries = construct_all_possible_geometries(node_refs, t_validUntil)`
+Using these `validSince` and `validUntil` timestamps, we lookup any edits to referenced nodes between these times. Each time one of these nodes is changed, a new potential minor version of the geometry exists. We only consider changes to the node coordinates as real changes.
 
-There are now two more possible cases: 1 or more possible geometries
-
-```
-if (allPossibleGeometries.length > 1) {
-  // There are multiple possible minorVersions.
-  // For each minorVersion, check the timestamps and the userID associated with it
-  // TODO: Could using the changeset be more efficient?
-
-  for ( possibleMinorVersion in allPossibleGeometries ){
-    //Timestamp?
-
-    //
-
-  }
-}else if ( allPossibleGeometries.length == 1) {
-  return {
-	geometry:     allPossibleGeometries[0],
-        minorVersion: 0
-  }
-}else{
-  //Something failed, no posible geometries.
-}
-```
-
-### Case 2: This is the most recent version of the way
-
-The first version of a way 
+With the list of changed nodes, we rebuild every possible version of the way. If the number of potential versions is too large, it keeps the first, second, and last minor version for every major version.

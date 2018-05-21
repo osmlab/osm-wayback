@@ -3,15 +3,13 @@
 
 Creates a [RocksDB](//rocksdb.org) key-value store of each version of OSM objects found in OSM history files. This history index can then be used to augment GeoJSON files of OSM objects to add a `@history` property that includes a record of all _previous_ edits.
 
-:rocket: Final goal is to create historic geometries for each intermediate version of an OSM feature.
-
 #### Notes:
 
 1. The history is index is keyed by `osm-id`+"!"+`version` (with separate column families for nodes, ways, and relations).
 
 2. `add_history` will lookup every previous version of an object passed into it. If an object is passed in at version 3, it will look up versions 1,2, and 3. This is necessary for the tag comparisons. In the event there exists a version 4 in the index, it will not be included because version 3 was fed into `add_history`.
 
-3. Since `add_history` is driven by a stream of GeoJSON objects, deleted objects are not supported.
+3. Since `add_history` is driven by a stream of (current, valid) GeoJSON objects, deleted objects are not yet supported.
 
 ## Build
 
@@ -41,7 +39,7 @@ build_lookup_index INDEX_DIR OSM_HISTORY_FILE
 Second, pass a stream of GeoJSON features as produced by [osmium-export](http://docs.osmcode.org/osmium/latest/osmium-export.html) to the `add_history` function
 
 ```
-cat features.geojson | add_history INDEX_DIR
+cat features.geojsonseq | add_history INDEX_DIR
 ```
 
 The output is a stream of augmented GeoJSON features with an additional `@history` array of the following schema.
@@ -75,3 +73,25 @@ Timewise, here are some rough estimates, these were run  locally on a 2013 Macbo
 _Estimate ~ 1M input features per minute?_
 
 (For reference, there are about ~600M GeoJSON features in the daily planet file).
+
+## Historic Geometries
+A fourth column family storing node locations can be created during `build_lookup_index`, depending on the value of the variable, `LOC` in `build_lookup_index.cpp`.
+
+If the node location column family exists, the <HISTORY GEOJSONSEQ> may be passed to `add_geometry`. This function looks up every version of every node in each historical version of the object. It adds `nodeLocations` as a top-level dictionary, keyed by `node ID` and then `changeset ID` for each node.
+
+```
+cat <HISTORY GEOJSONSEQ> | add_geometry <ROCKSDB> > <HISTORY GEOJSONSEQ with Node Locations>
+```
+
+From here, this stream is passed into `geometry-prototyping/index.js` to reconstruct major and minor geometry versions for every object. This can be done in one step with the following command:
+
+```
+cat <HISTORY GEOJSONSEQ> | ../build/add_geometry <ROCKSDB> | node index.js > <HISTORY GEOJSONSEQ with Geometry>
+```
+
+See [geometry-prototyping/README.md](geometry-prototyping/README.md) for more information on which options are available and the description fo the schema in [HISTORICAL_SCHEMA_V1.md](HISTORICAL_SCHEMA_V1.md) for the pros and cons of each schema.
+
+Currently, 3 output types are supported:
+1. Every major and minor version are independent objects (Best for rendering historical geometries)
+2. Entries in the `@history` object include `geometry` attribute (Best for historical analysis)
+3. The `@history` object is a TopoJSON object, storing every version of the object. (More efficient than 2.)
