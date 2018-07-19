@@ -10,11 +10,11 @@ var INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS = 0;
 var INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS = 0;
 var INCLUDE_MAJOR_DIFFS                       = 0;
 
-var GEOMETRY_ONLY                             = 1;
+var GEOMETRY_ONLY                             = 0;
 
 //ONLY ONE OF THESE SHOULD BE SET
-var WRITE_HISTORY_COMPLETE_OBJECT   = 1;
-var WRITE_EVERY_GEOMETRY            = 1;
+var WRITE_HISTORY_COMPLETE_OBJECT   = 0;
+var WRITE_EVERY_GEOMETRY            = 0;
 var WRITE_TOPOJSON_HISTORY          = 1;
 
 var allGeometriesByteSize               = 0;
@@ -165,14 +165,21 @@ function processLine (line) {
 
       //Encode TopoJSON
       if(WRITE_TOPOJSON_HISTORY){
-        object.properties['@history'] = topojson.topology(newHistoryObject)
-        string = JSON.stringify(object)
-        console.log(string)
-        topojsonHistoryByteSize += string.length;
+        try{
+          object.properties['@history'] = topojson.topology(newHistoryObject)
+          string = JSON.stringify(object)
+          console.log(string)
+          topojsonHistoryByteSize += string.length;
+        }catch(err){
+          console.error("err")
+        }
       }
     }
 
     //TODO: add geometries even if there is no history?
+  }else{
+    //If there is no history, let's just write it back out...
+    console.log(line)
   }
 
   process.stderr.write(`\r${geometries} processed`);

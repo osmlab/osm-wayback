@@ -43,7 +43,7 @@ namespace osmwayback {
 
             } catch (const osmium::invalid_location& ex) {
                 //Catch invlid locations, not sure why this would happen... but it could
-                std::cerr<< ex.what() << std::endl;
+                //std::cerr<< ex.what() << std::endl;
             }
         }
 

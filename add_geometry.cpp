@@ -57,7 +57,7 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
     if (geojson_doc["properties"].HasMember("@history") ){
 
       // const auto version = geojson_doc["properties"]["@version"].GetInt();
-      const auto osm_id = geojson_doc["properties"]["@id"].GetInt64();
+      // const auto osm_id = geojson_doc["properties"]["@id"].GetInt64();
       const std::string type = geojson_doc["properties"]["@type"].GetString();
 
       //A set of nodes to lookup in the index.
@@ -111,6 +111,12 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
           std::cerr<< ex.what() << std::endl;
       }
 
+    }else{
+      //There was no history object, but we still need to write the object back out to maintain complete files.
+      rapidjson::StringBuffer buffer;
+      rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+      geojson_doc.Accept(writer);
+      std::cout << buffer.GetString() << std::endl;
     }
 }
 

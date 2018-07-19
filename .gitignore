@@ -46,3 +46,5 @@ test/history-geojson/*
 test/geojson/nepal.geojsonl
 nepal.osh.pbf
 *.tar
+
+*.mbtiles

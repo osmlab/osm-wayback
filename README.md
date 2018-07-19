@@ -3,7 +3,9 @@
 
 Creates a [RocksDB](//rocksdb.org) key-value store of each version of OSM objects found in OSM history files. This history index can then be used to augment GeoJSON files of OSM objects to add a `@history` property that includes a record of all _previous_ edits.
 
-#### Notes:
+osm-wayback is currently designed to support large(ish)-scale historical analysis of OpenStreetMap edits, specifically focused on how objects change overtime (and who is editing them).
+
+#### Current Development Notes:
 
 1. The history is index is keyed by `osm-id`+"!"+`version` (with separate column families for nodes, ways, and relations).
 
