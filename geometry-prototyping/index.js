@@ -6,9 +6,9 @@ var topojson = require("topojson");
 
 const DEBUG=1;
 
-var INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS = 0;
+var INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS = 1;
 var INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS = 0;
-var INCLUDE_MAJOR_DIFFS                       = 0;
+var INCLUDE_MAJOR_DIFFS                       = 1;
 
 var GEOMETRY_ONLY                             = 0;
 
