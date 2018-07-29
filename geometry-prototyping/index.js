@@ -44,32 +44,47 @@ function processLine (line) {
 
   var object = JSON.parse(line);
 
-  //If there are nodeLocations, there is potential for multiple historical geometries (even if only 1 major Version)
-  if (object.hasOwnProperty('nodeLocations')){
+  var geometryBuilder;
 
-    if ( object.properties.hasOwnProperty('@history') ){
-      var geometryBuilder = new GeometryBuilder({
-        'nodeLocations' : object.nodeLocations,
-        'history'       : object.properties['@history'],
-        'osmID'         : object.properties['@id']
-      })
+  //Are there history values?
+  if object.properties.hasOwnProperty('@history'){
+
+    //nodeLocations is a toplevel attribute required by ways (optional in nodes)
+    if (object.properties['@type']==='node'){
+
     }else{
-      //Object doesn't have a history value, confirm there aren't multiple versions of nodes in nodeLocations?
-      flag = false;
-      Object.keys(object.nodeLocations).forEach(function(nodeID){
-        if (Object.keys(object.nodeLocations[nodeId]).length > 1){
-          flag = true;
-        }
-      })
-      if(flag){
-        //TODO
-        console.error("\n Situation with version 1, no history, but multiple nodeLocations \n")
+      if (object.hasOwnProperty('nodeLocations')){
+        geometryBuilder = new GeometryBuilder({
+          'nodeLocations' : object.nodeLocations,
+          'history'       : object.properties['@history'],
+          'osmID'         : object.properties['@id']
+        })
+
+        //Build possible geometries from NodeLocations
+        geometryBuilder.buildGeometries();
+        geometries++;
       }
     }
 
-    //Build possible geometries from NodeLocations
-    geometryBuilder.buildGeometries();
-    geometries++;
+  }
+
+  }else{
+    //Object doesn't have a history value, confirm there aren't multiple versions of nodes in nodeLocations?
+    flag = false;
+    Object.keys(object.nodeLocations).forEach(function(nodeID){
+      if (Object.keys(object.nodeLocations[nodeId]).length > 1){
+        flag = true;
+      }
+    })
+    if(flag){
+      //TODO
+      console.error("\n Situation with version 1, no history, but multiple nodeLocations \n")
+    }
+  }
+
+
+
+  //Build the output object, depending on
 
     //Construct a new, minorVersion enabled historical version of the object:
     var newHistoryObject = []
