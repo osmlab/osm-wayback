@@ -1,43 +1,39 @@
 /*
-  Read in a stream of GeoJSON (history enriched ... and process geometries)
+ *  Input:  A stream of history enriched GeoJSON (GEOJSONSEQ)
+ *          with embedded historical node location information
+ *
+ *  Output: Historical geometries written to individual versions
 */
 
 var topojson = require("topojson");
 
-const DEBUG=1;
+var WayGeometryBuilder  = require('./way-geometry-builder.js')
+var NodeGeometryBuilder = require('./node-geometry-builder.js')
 
-var INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS = 1;
-var INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS = 0;
-var INCLUDE_MAJOR_DIFFS                       = 1;
+const DEBUG = true;
 
-var GEOMETRY_ONLY                             = 0;
+const config = {
+  'INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS' : true,
+  'INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS' : false,
+  'INCLUDE_MAJOR_DIFFS'                       : true,
+  'GEOMETRY_ONLY'                             : false,
 
-//ONLY ONE OF THESE SHOULD BE SET
-var WRITE_HISTORY_COMPLETE_OBJECT   = 0;
-var WRITE_EVERY_GEOMETRY            = 0;
-var WRITE_TOPOJSON_HISTORY          = 1;
+  //ONLY ONE OF THESE SHOULD BE SET
+  'WRITE_HISTORY_COMPLETE_OBJECT'             : false,
+  'WRITE_EVERY_GEOMETRY'                      : false,
+  'WRITE_TOPOJSON_HISTORY'                    : true
+}
 
+//Stats
 var allGeometriesByteSize               = 0;
 var historyCompleteSingleObjectByteSize = 0;
 var topojsonHistoryByteSize             = 0;
 var string;
-
-console.error("Beginning Geometry Reconstruction")
-
-process.stdin.pipe(require('split')())
-  .on('data', processLine)
-  .on('end',function(){
-    process.stderr.write(`\n\nOutput Sizes (based on string length):`);
-    process.stderr.write(`\n--Individual Geometries    : ${ (allGeometriesByteSize / (1024*1024)).toFixed(1)} MB`);
-    process.stderr.write(`\n--History Object           : ${ (historyCompleteSingleObjectByteSize / (1024*1024)).toFixed(1)} MB`);
-    process.stderr.write(`\n--History Object (topojson): ${ (topojsonHistoryByteSize / (1024*1024)).toFixed(1)} MB\n\n`);
-  })
-
-// Create a geometry builder instance for the data on this line
-var GeometryBuilder = require('./geometry-builder.js')
-
 var geometries = 0;
 
+/*
+ * Main Function
+*/
 function processLine (line) {
   //If line is empty, skip
   if (line==="") return;
@@ -46,58 +42,36 @@ function processLine (line) {
 
   var geometryBuilder;
 
-  //Are there history values?
-  if object.properties.hasOwnProperty('@history'){
+  //If the object already has `@history` data
+  if (object.properties.hasOwnProperty('@history')){
 
-    //nodeLocations is a toplevel attribute required by ways (optional in nodes)
+    //If it's a node, initialize a simpler geometry builder
     if (object.properties['@type']==='node'){
 
-    }else{
-      if (object.hasOwnProperty('nodeLocations')){
-        geometryBuilder = new GeometryBuilder({
-          'nodeLocations' : object.nodeLocations,
-          'history'       : object.properties['@history'],
-          'osmID'         : object.properties['@id']
-        })
+      geometryBuilder = new NodeGeometryBuilder({
+        'history' : object.properties['@history'],
+        'osmID'   : object.properties['@id']
+      })
 
-        //Build possible geometries from NodeLocations
-        geometryBuilder.buildGeometries();
-        geometries++;
-      }
+    }else if (object.hasOwnProperty('nodeLocations')) {
+      geometryBuilder = new WayGeometryBuilder({
+        'nodeLocations' : object.nodeLocations,
+        'history'       : object.properties['@history'],
+        'osmID'         : object.properties['@id']
+      })
     }
 
-  }
+    if (geometryBuilder){
+      geometryBuilder.buildGeometries();
+      geometries++;
 
-  }else{
-    //Object doesn't have a history value, confirm there aren't multiple versions of nodes in nodeLocations?
-    flag = false;
-    Object.keys(object.nodeLocations).forEach(function(nodeID){
-      if (Object.keys(object.nodeLocations[nodeId]).length > 1){
-        flag = true;
-      }
-    })
-    if(flag){
-      //TODO
-      console.error("\n Situation with version 1, no history, but multiple nodeLocations \n")
-    }
-  }
+      //Build the output object
+      var geometryType = object.geometry.type;
 
-
-
-  //Build the output object, depending on
-
-    //Construct a new, minorVersion enabled historical version of the object:
-    var newHistoryObject = []
-
-    var geometryType = object.geometry.type;
-
-    //Iterate through the current @history, reconstructing the geometries
-    if(object.properties.hasOwnProperty('@history')){
-
+      var newHistoryObject = []
       var majorVersionTags = {};
 
       object.properties['@history'].forEach(function(histObj){
-
         //Reconstruct the base properties for this Major Version
         majorVersionTags = reconstructMajorOSMTags(majorVersionTags, histObj)
 
@@ -116,7 +90,7 @@ function processLine (line) {
             properties: geometryBuilder.historicalGeometries[majorVersionKey][i].properties
           }
 
-          if(GEOMETRY_ONLY){
+          if(config.GEOMETRY_ONLY){
             minorVersion.properties = {
               '@validSince':geometryBuilder.historicalGeometries[majorVersionKey][i].properties['@validSince'],
               '@validUntil':geometryBuilder.historicalGeometries[majorVersionKey][i].properties['@validUntil']
@@ -124,7 +98,7 @@ function processLine (line) {
           }
 
           if(i==0){
-            if (INCLUDE_MAJOR_DIFFS){
+            if (config.INCLUDE_MAJOR_DIFFS){
               minorVersion.properties = {...minorVersion.properties, ...histObj};
               minorVersion.properties['@user']      = histObj.h;
               delete minorVersion.properties.h;
@@ -136,12 +110,12 @@ function processLine (line) {
               delete minorVersion.properties.i;
               delete minorVersion.properties.t;
             }
-            if(INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS){
+            if(config.INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS){
               minorVersion.properties = {...minorVersion.properties, ...majorVersionTags}
               minorVersion.properties['@id'] = object.properties['@id']
             }
           }else{
-            if (INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS){
+            if (config.INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS){
               minorVersion.properties = {...minorVersion.properties, ...majorVersionTags}
               minorVersion.properties['@id'] = object.properties['@id']
             }
@@ -149,7 +123,7 @@ function processLine (line) {
 
           delete minorVersion.properties.n;
 
-          if (WRITE_EVERY_GEOMETRY){
+          if (config.WRITE_EVERY_GEOMETRY){
             string = JSON.stringify(minorVersion)
             allGeometriesByteSize += string.length;
             console.log(string)
@@ -165,21 +139,21 @@ function processLine (line) {
       delete object.nodeLocations;
       delete object.properties['@way_nodes']
 
-      if(GEOMETRY_ONLY){
+      if(config.GEOMETRY_ONLY){
         object.properties = {
           '@validSince' : object.properties['@timestamp'],
           '@history'    : object.properties['@history']
         }
       }
 
-      if(WRITE_HISTORY_COMPLETE_OBJECT){
+      if(config.WRITE_HISTORY_COMPLETE_OBJECT){
         string = JSON.stringify(object)
         historyCompleteSingleObjectByteSize += string.length;
         console.log(string)
       }
 
       //Encode TopoJSON
-      if(WRITE_TOPOJSON_HISTORY){
+      if(config.WRITE_TOPOJSON_HISTORY){
         try{
           object.properties['@history'] = topojson.topology(newHistoryObject)
           string = JSON.stringify(object)
@@ -222,3 +196,18 @@ function reconstructMajorOSMTags(baseObject,newObject){
   }
   return baseObject
 }
+
+/*
+ * RUNTIME
+*/
+
+console.error("Beginning Geometry Reconstruction")
+
+process.stdin.pipe(require('split')())
+  .on('data', processLine)
+  .on('end',function(){
+    process.stderr.write(`\n\nOutput Sizes (based on string length):`);
+    process.stderr.write(`\n--Individual Geometries    : ${ (allGeometriesByteSize / (1024*1024)).toFixed(1)} MB`);
+    process.stderr.write(`\n--History Object           : ${ (historyCompleteSingleObjectByteSize / (1024*1024)).toFixed(1)} MB`);
+    process.stderr.write(`\n--History Object (topojson): ${ (topojsonHistoryByteSize / (1024*1024)).toFixed(1)} MB\n\n`);
+  })
