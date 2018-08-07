@@ -1,3 +1,4 @@
+.com
 var _ = require('lodash');
 
 const CHANGESET_THRESHOLD            = 60*1   // 1 minute

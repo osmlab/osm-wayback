@@ -10,7 +10,7 @@
 
 #include <osmium/osm/types.hpp>
 
-namespace osmwayback {
+namespace jsonencoding {
 
 /*
 
@@ -28,8 +28,6 @@ namespace osmwayback {
     */
 
     bool encode_location_json(const osmium::Node& node, rapidjson::Document& doc){
-        // rapidjson::Document doc;
-        // doc.SetObject();
 
         rapidjson::Document::AllocatorType& a = doc.GetAllocator();
         rapidjson::Value thisNode(rapidjson::kObjectType);
@@ -60,8 +58,6 @@ namespace osmwayback {
 
         return true;
     }
-
-
 
     /*
       Extract only primary properties

@@ -30,22 +30,6 @@
 #include "pbf_encoding.hpp"
 #include "json_encoding.hpp"
 
-//https://stackoverflow.com/questions/8473009/how-to-efficiently-compare-two-maps-of-strings-in-c
-template <typename Map>
-bool map_compare (Map const &lhs, Map const &rhs) {
-    // No predicate needed because there is operator== for pairs already.
-    return lhs.size() == rhs.size()
-        && std::equal(lhs.begin(), lhs.end(),
-                      rhs.begin());
-}
-
-int osm_type(const std::string type) {
-    if (type == "node") return 1;
-    if (type == "way") return 2;
-    if (type == "relation") return 3;
-    return 1;
-}
-
 void fetchNodeGeometries(ObjectStore* store, const std::string line) {
     rapidjson::Document geojson_doc;
 
@@ -54,70 +38,61 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
         return;
     }
 
-    if (geojson_doc["properties"].HasMember("@history") ){
+    const std::string type = geojson_doc["properties"]["@type"].GetString();
 
-      // const auto version = geojson_doc["properties"]["@version"].GetInt();
-      // const auto osm_id = geojson_doc["properties"]["@id"].GetInt64();
-      const std::string type = geojson_doc["properties"]["@type"].GetString();
+    if (type!="node"){
 
-      //A set of nodes to lookup in the index.
-      std::set<std::string> nodeRefs;
+        //Start a nodeLocations object, if there is history, handle that first.
+        std::set<std::string> nodeRefs;
 
-      // std::cout << "OSMID: "<< osm_id << std::endl;
-      // std::cout << "-----------" << std::endl;
+        try{
+          //Iterate through the history object, looking for node references
+          for (auto& histObj : geojson_doc["properties"]["@history"].GetArray()){
 
-      try{
-        //Iterate through the history object, looking for node references
-        for (auto& histObj : geojson_doc["properties"]["@history"].GetArray()){
-
-          //If there are node references
-          if (histObj.HasMember("n") ){
-            //Add them to the nodeRefs set.
-            for (auto& nodeRef : histObj["n"].GetArray()){
-              nodeRefs.insert(std::to_string(nodeRef.GetInt64()));
+            //If there are node references
+            if (histObj.HasMember("n") ){
+              //Add them to the nodeRefs set.
+              for (auto& nodeRef : histObj["n"].GetArray()){
+                nodeRefs.insert(std::to_string(nodeRef.GetInt64()));
+              }
             }
           }
-        }
 
-        std::string rocksEntry;
-        rapidjson::Document thisNodeHistory;
-        rapidjson::Value nodesHistory(rapidjson::kObjectType);
+          std::string rocksEntry;
+          rapidjson::Document thisNodeHistory;
+          rapidjson::Value nodesHistory(rapidjson::kObjectType);
 
-        for (std::set<std::string>::iterator it=nodeRefs.begin(); it!=nodeRefs.end(); ++it){
+          for (std::set<std::string>::iterator it=nodeRefs.begin(); it!=nodeRefs.end(); ++it){
 
-          //std::cout << "NODE: " << *it << std::endl;
+            rocksdb::Status status = store->get_node_locations(*it, &rocksEntry);
 
-          rocksdb::Status status = store->get_node_locations(*it, &rocksEntry);
-
-          //rocksEntry is the string of node history, which is a JSON doc, add it to the array
-          if(status.ok()){
-              rapidjson::Value nodeIDStr;
-              nodeIDStr.SetString(*it, geojson_doc.GetAllocator());
-              thisNodeHistory.Parse<0>(rocksEntry.c_str());
-              nodesHistory.AddMember(nodeIDStr,thisNodeHistory,geojson_doc.GetAllocator());
+            //rocksEntry is the string of node history, which is a JSON doc, add it to the array
+            if(status.ok()){
+                rapidjson::Value nodeIDStr;
+                nodeIDStr.SetString(*it, geojson_doc.GetAllocator());
+                thisNodeHistory.Parse<0>(rocksEntry.c_str());
+                nodesHistory.AddMember(nodeIDStr,thisNodeHistory,geojson_doc.GetAllocator());
+            }
           }
+
+          geojson_doc.AddMember("nodeLocations",nodesHistory,geojson_doc.GetAllocator());
+
+          rapidjson::StringBuffer buffer;
+          rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+          geojson_doc.Accept(writer);
+          std::cout << buffer.GetString() << std::endl;
+
+          // std::cout << "===============" << std::endl;
+
+        } catch (const std::exception& ex) {
+            std::cerr<< ex.what() << std::endl;
         }
-
-        geojson_doc.AddMember("nodeLocations",nodesHistory,geojson_doc.GetAllocator());
-
-        rapidjson::StringBuffer buffer;
-        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        geojson_doc.Accept(writer);
-        std::cout << buffer.GetString() << std::endl;
-
-        // std::cout << "===============" << std::endl;
-
-      } catch (const std::exception& ex) {
-          std::cerr<< ex.what() << std::endl;
-      }
-
-    }else{
-      //There was no history object, but we still need to write the object back out to maintain complete files.
-      rapidjson::StringBuffer buffer;
-      rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-      geojson_doc.Accept(writer);
-      std::cout << buffer.GetString() << std::endl;
     }
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    geojson_doc.Accept(writer);
+    std::cout << buffer.GetString() << std::endl;
 }
 
 //https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring

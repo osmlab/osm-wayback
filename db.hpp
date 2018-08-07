@@ -219,16 +219,10 @@ public:
       }
     }
 
-/*
-    Store JSON Objects in RocksDB
-
-    (Less efficient for large areas, but useful for debugging)
-*/
-
+    /*  Looks up a NODE ID and performs an upsert to the locations CF, adding new historical
+     *    versions to it, keyed by changeset.
+     */
     void upsert_node_location(const osmium::Node& node){
-        // A custom Merge Function because I don't get C++
-        //
-        // Looks up the NodeID in the locations CF
 
         rapidjson::Document nodeLocations;
 
@@ -237,27 +231,17 @@ public:
         //First, extract location information from this node.
         std::string nodeKey = std::to_string(node.id());
 
-
         rocksdb::Status s = m_db->Get(rocksdb::ReadOptions(), m_cf_locations, nodeKey, &rocksEntry);
-
-        // rapidjson::StringBuffer buffer;
-        // rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        // doc.Accept(writer);
-
-        // rocksdb::Status stat = m_buffer_batch.Put(cf, lookup, buffer.GetString());
 
         if ( s.IsNotFound() ){
             //There is not value at that key, so start the object
             nodeLocations.SetObject();
         }else{
+            //nodeLocations is a JSON object...
             nodeLocations.Parse<0>(rocksEntry.c_str());
-                // dbrocks_parse_error++;
-                // continue;
-            // }else{
-              //nodeLocations is now a document, add the location to it.
         }
         //Add this changeset to the node
-        if( osmwayback::encode_location_json(node, nodeLocations) ){
+        if( jsonencoding::encode_location_json(node, nodeLocations) ){
             rapidjson::StringBuffer buffer;
             rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
             nodeLocations.Accept(writer);
@@ -273,101 +257,10 @@ public:
         }
     }
 
-    void store_json_node(const osmium::Node& node) {
-      //
-      // No longer used because store_pbf_node is more efficient
-      //
-        rapidjson::Document json;
-
-        //If there are no tags, do things differently
-        if (node.tags().empty()) {
-            //If we're not storing geometries, skip.
-            if (!STORE_GEOMETRIES){
-                empty_objects_count++;
-                return;
-            //We are storing at least geometries, so we need basic attributes
-            }else{
-                //If it's version 1, it should match a changeset, skip all properties
-                if (node.version()==1){
-                    //No tags & version 1: store only changeset INFO
-                    json = osmwayback::extract_primary_properties(node);
-                }else{
-                    json = osmwayback::extract_osm_properties(node);
-                }
-            }
-        } else {
-            //There are tags, so get everything
-            // rapidjson::Document json;
-            json = osmwayback::extract_osm_properties(node);
-        }
-
-        std::string lookup = make_lookup( node.id(), node.version() );
-
-        //If the node was not deleted, then store it's coordinates (if desired)
-        if( !node.deleted() && STORE_GEOMETRIES){
-            try{
-              rapidjson::Document::AllocatorType& a = json.GetAllocator();
-              rapidjson::Value coordinates(rapidjson::kArrayType);
-              coordinates.PushBack(node.location().lon(), a);
-              coordinates.PushBack(node.location().lat(), a);
-              json.AddMember("g", coordinates, a); //g for geometry
-
-            } catch (const osmium::invalid_location& ex) {
-              //Catch invlid locations, not sure why this would happen... but it could
-              //std::cerr<< ex.what() << std::endl;
-            }
-        }
-
-        if(store_json_object(json, lookup, m_cf_nodes)) {
-            stored_nodes_count++;
-        }
-        if (stored_nodes_count != 0 && (stored_nodes_count % 4000000) == 0) {
-            flush_family("nodes", m_cf_nodes);
-            report_count_stats();
-        }
-    }
-
-    void store_json_way(const osmium::Way& way) {
-        //Get basic properties, initialize json
-        rapidjson::Document json;
-        json = osmwayback::extract_osm_properties(way);
-
-        std::string lookup = make_lookup( way.id(), way.version() );
-
-        //Store the node refs
-        if( !way.deleted() && STORE_GEOMETRIES){
-          try{
-            rapidjson::Document::AllocatorType& a = json.GetAllocator();
-            rapidjson::Value nodes(rapidjson::kArrayType);
-
-            //iterate over the array
-            for (const osmium::NodeRef& nr : way.nodes()) {
-              nodes.PushBack(nr.ref(), a);
-            }
-
-            json.AddMember("r", nodes, a); //r for references
-
-          } catch (const std::exception& ex) {
-            //Not sure what might get thrown here
-            //INVALID GEOMETRIES?
-            //std::cerr<< ex.what() << std::endl;
-          }
-        }
-
-        if(store_json_object(json, lookup, m_cf_ways)) {
-            stored_ways_count++;
-        }
-
-        if (stored_ways_count != 0 && (stored_ways_count % 2000000) == 0) {
-            flush_family("ways", m_cf_ways);
-            report_count_stats();
-        }
-    }
-
     void store_json_relation(const osmium::Relation& relation) {
         //Get basic properties, initialize json
         rapidjson::Document json;
-        json = osmwayback::extract_osm_properties(relation);
+        json = jsonencoding::extract_osm_properties(relation);
 
         std::string lookup = make_lookup( relation.id(), relation.version() );
 
@@ -432,37 +325,3 @@ public:
         report_count_stats();
     }
 };
-
-
-// bool fetch_node_history(const int64_t osm_id, rapidjson::Value* nodeHistory) {
-//
-//     rocksdb::Slice prefix = std::to_string(osm_id+PADDING)+"!";
-//
-//     std::cout << osm_id << "-->" << std::to_string(osm_id+PADDING)+"!" <<  std::endl;
-//
-//     rocksdb::ReadOptions ro;
-//     // ro.prefix_seek = true;
-//     // ro.prefix_same_as_start=true;
-//     // ro.total_order_seek=true;
-//     // ro.prefix_extractor.reset(rocksdb::NewFixedPrefixTransform(14));
-//
-//
-//     auto iter = m_db->NewIterator(rocksdb::ReadOptions(), m_cf_nodes);
-//
-//     //Need a value to decode
-//     rapidjson::Document stored_doc;
-//     for (iter->Seek(prefix); iter->Valid() && iter->key().starts_with(prefix); iter->Next()) {
-//     // for (iter->Seek(prefix); iter->Valid(); iter->Next()) {
-//
-//       // std::cout << iter->key().starts_with(prefix) << std::endl;
-//       // osmwayback::decode_node(iter->value().ToString(), &stored_doc);
-//       // stored_doc.RemoveMember("a");
-//       std::cout << iter->key().ToString() << std::endl;
-//       // std::cout << iter->value().ToString() << std::endl;
-//       // nodeHistory->PushBack(stored_doc, stored_doc.GetAllocator());
-//     }
-//
-//     std::cout << "----" << std::endl;
-//
-//     return true;
-// }

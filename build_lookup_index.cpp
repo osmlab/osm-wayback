@@ -1,5 +1,10 @@
 /*
-  Build History Database
+  Builds a RocksDB index from an OSM file using osmium to read the file.
+
+  INPUT: Location to store index on disk
+         An OSM history file (any osmium readable format should work, built for .osh.pbf)
+
+  OUTPUT: Nothing, builds index at location specified
 */
 
 #include <cstdlib>  // for std::exit
@@ -17,17 +22,20 @@
 
 bool LOC = true;
 
-class PBFObjectStoreHandler : public osmium::handler::Handler {
+class ObjectStoreHandler : public osmium::handler::Handler {
     ObjectStore* m_store;
 
 public:
-    PBFObjectStoreHandler(ObjectStore* store) : m_store(store) {}
+    ObjectStoreHandler(ObjectStore* store) : m_store(store) {}
     long node_count = 0;
     int way_count = 0;
     int rel_count = 0;
+
     void node(const osmium::Node& node) {
         node_count += 1;
         m_store->store_pbf_node(node);
+
+        //Store node locations in a simplified format (currently JSON)
         if(LOC){
           m_store->upsert_node_location(node);
         }
@@ -36,29 +44,7 @@ public:
         m_store->store_pbf_way(way);
         way_count++;
     }
-    void relation(const osmium::Relation& relation) {
-      //Don't exist yet
-        m_store->store_json_relation(relation);
-        rel_count++;
-    }
-};
-
-class JSONObjectStoreHandler : public osmium::handler::Handler {
-    ObjectStore* m_store;
-
-public:
-    JSONObjectStoreHandler(ObjectStore* store) : m_store(store) {}
-    long node_count = 0;
-    int way_count = 0;
-    int rel_count = 0;
-    void node(const osmium::Node& node) {
-        node_count += 1;
-        m_store->store_json_node(node);
-    }
-    void way(const osmium::Way& way) {
-        m_store->store_json_way(way);
-        way_count++;
-    }
+    //Stores relation in the index, but isn't used (yet)
     void relation(const osmium::Relation& relation) {
         m_store->store_json_relation(relation);
         rel_count++;
@@ -90,7 +76,6 @@ void report_progress(const ObjectStore* store) {
           store->stored_ways_count /1000 << "K ways @ " << diff_ways_count << " w/s | " <<
           store->stored_relations_count << " rels @ " << diff_relations_count << "   ";
 
-
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         last_nodes_count += diff_nodes_count;
         last_ways_count += diff_ways_count;
@@ -109,7 +94,7 @@ int main(int argc, char* argv[]) {
 
     ObjectStore store(index_dir, true);
 
-    PBFObjectStoreHandler osm_object_handler(&store);
+    ObjectStoreHandler osm_object_handler(&store);
 
     std::thread t_progress(report_progress, &store);
 
