@@ -45,14 +45,22 @@ namespace jsonencoding {
             }
         }
 
+        rapidjson::Value changesetKey;
+        changesetKey.SetString(std::to_string(node.changeset()), a);// = changesetStr; //(rapidjson::StringRef(changesetStr));
+
+        if (doc.HasMember(changesetKey)){
+            if (doc[changesetKey]["i"].GetInt() > node.version() ){
+                return true;
+            }else{
+                doc.RemoveMember(changesetKey);
+            }
+        }
+
         thisNode.AddMember("t", uint32_t(node.timestamp()), a);
         thisNode.AddMember("c", node.changeset(), a);
         thisNode.AddMember("i", node.version(), a);   //i for iteration (version)
         thisNode.AddMember("h", std::string{node.user()}, a); //handle
         thisNode.AddMember("u", node.uid(), a);
-
-        rapidjson::Value changesetKey;
-        changesetKey.SetString(std::to_string(node.changeset()), a);// = changesetStr; //(rapidjson::StringRef(changesetStr));
 
         doc.AddMember(changesetKey, thisNode, a);
 

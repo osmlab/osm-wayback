@@ -38,61 +38,64 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
         return;
     }
 
-    const std::string type = geojson_doc["properties"]["@type"].GetString();
+    const std::string obj_type = geojson_doc["properties"]["@type"].GetString();
 
-    if (type!="node"){
+    if (obj_type != "node"){
 
-        //Start a nodeLocations object, if there is history, handle that first.
-        std::set<std::string> nodeRefs;
+        std::cerr << "." << std::endl;
 
         try{
-          //Iterate through the history object, looking for node references
-          for (auto& histObj : geojson_doc["properties"]["@history"].GetArray()){
+            //Start a nodeLocations object, if there is history, handle that first.
+            std::set<std::string> nodeRefs;
 
-            //If there are node references
-            if (histObj.HasMember("n") ){
-              //Add them to the nodeRefs set.
-              for (auto& nodeRef : histObj["n"].GetArray()){
-                nodeRefs.insert(std::to_string(nodeRef.GetInt64()));
-              }
+            //Iterate through the history object, looking for node references
+            for (auto& histObj : geojson_doc["properties"]["@history"].GetArray()){
+
+                //If there are node references
+                if (histObj.HasMember("n") ){
+                    //Add them to the nodeRefs set.
+
+                    for (auto& nodeRef : histObj["n"].GetArray()){
+                      nodeRefs.insert(std::to_string(nodeRef.GetInt64()));
+                    }
+                }
             }
-          }
 
-          std::string rocksEntry;
-          rapidjson::Document thisNodeHistory;
-          rapidjson::Value nodesHistory(rapidjson::kObjectType);
+            std::string rocksEntry;
+            rapidjson::Document thisNodeHistory;
+            rapidjson::Value nodesHistory(rapidjson::kObjectType);
 
-          for (std::set<std::string>::iterator it=nodeRefs.begin(); it!=nodeRefs.end(); ++it){
+            for (std::set<std::string>::iterator it=nodeRefs.begin(); it!=nodeRefs.end(); ++it){
 
-            rocksdb::Status status = store->get_node_locations(*it, &rocksEntry);
+                rocksdb::Status status = store->get_node_locations(*it, &rocksEntry);
 
-            //rocksEntry is the string of node history, which is a JSON doc, add it to the array
-            if(status.ok()){
-                rapidjson::Value nodeIDStr;
-                nodeIDStr.SetString(*it, geojson_doc.GetAllocator());
-                thisNodeHistory.Parse<0>(rocksEntry.c_str());
-                nodesHistory.AddMember(nodeIDStr,thisNodeHistory,geojson_doc.GetAllocator());
+                //rocksEntry is the string of node history, which is a JSON doc, add it to the array
+                if(status.ok()){
+                    rapidjson::Value nodeIDStr;
+                    nodeIDStr.SetString(*it, geojson_doc.GetAllocator());
+                    thisNodeHistory.Parse<0>(rocksEntry.c_str());
+                    nodesHistory.AddMember(nodeIDStr,thisNodeHistory,geojson_doc.GetAllocator());
+                }
             }
-          }
-
-          geojson_doc.AddMember("nodeLocations",nodesHistory,geojson_doc.GetAllocator());
-
-          rapidjson::StringBuffer buffer;
-          rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-          geojson_doc.Accept(writer);
-          std::cout << buffer.GetString() << std::endl;
-
-          // std::cout << "===============" << std::endl;
+            if (!nodesHistory.Empty()){
+                geojson_doc.AddMember("nodeLocations",nodesHistory,geojson_doc.GetAllocator());
+            }
 
         } catch (const std::exception& ex) {
             std::cerr<< ex.what() << std::endl;
         }
     }
 
+    //Now write the object back out
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+
     geojson_doc.Accept(writer);
-    std::cout << buffer.GetString() << std::endl;
+    std::cerr << std::to_string( buffer.GetSize() ) << std::endl;
+
+    std::string s(buffer.GetString(), buffer.GetSize());
+
+    std::cout << s << std::endl;
 }
 
 //https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
