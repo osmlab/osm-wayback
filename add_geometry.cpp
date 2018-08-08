@@ -40,12 +40,11 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
 
     const std::string obj_type = geojson_doc["properties"]["@type"].GetString();
 
+    //If object is not a node, there is a @history property with nodeRefs.
     if (obj_type != "node"){
 
-        std::cerr << "." << std::endl;
-
         try{
-            //Start a nodeLocations object, if there is history, handle that first.
+            //Start a set of unique node IDs ever associated with any version of this object
             std::set<std::string> nodeRefs;
 
             //Iterate through the history object, looking for node references
@@ -54,31 +53,101 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
                 //If there are node references
                 if (histObj.HasMember("n") ){
                     //Add them to the nodeRefs set.
-
                     for (auto& nodeRef : histObj["n"].GetArray()){
-                      nodeRefs.insert(std::to_string(nodeRef.GetInt64()));
+                        nodeRefs.insert(std::to_string(nodeRef.GetInt64()));
                     }
                 }
             }
 
-            std::string rocksEntry;
-            rapidjson::Document thisNodeHistory;
-            rapidjson::Value nodesHistory(rapidjson::kObjectType);
+            rapidjson::Value nodeLocations(rapidjson::kObjectType);
+            /* nodeLocations will become the following object.
+             * {
+                  nodeID : {
+                    changesetID : {
+                      p: [lon, lat]
+                      i: <version>
+                      u: <uid>
+                      h: <handle>
+                    },
+                    changesetID : ...
+                  },
+                  nodeID : ...
+                }
+             */
 
+            //Iterate through the set of unique node IDs associated with this object
             for (std::set<std::string>::iterator it=nodeRefs.begin(); it!=nodeRefs.end(); ++it){
 
+                std::string rocksEntry;
                 rocksdb::Status status = store->get_node_locations(*it, &rocksEntry);
 
-                //rocksEntry is the string of node history, which is a JSON doc, add it to the array
+                //rocksEntry is now the string from rocksDB, parse it into JSON
                 if(status.ok()){
                     rapidjson::Value nodeIDStr;
-                    nodeIDStr.SetString(*it, geojson_doc.GetAllocator());
-                    thisNodeHistory.Parse<0>(rocksEntry.c_str());
-                    nodesHistory.AddMember(nodeIDStr,thisNodeHistory,geojson_doc.GetAllocator());
+                    nodeIDStr.SetString(*it, geojson_doc.GetAllocator()); //Set the ID of the node
+
+                    rapidjson::Document thisNodeHistory;
+                    thisNodeHistory.Parse<rapidjson::kParseFullPrecisionFlag>( rocksEntry.c_str() );
+
+                    //DEBUGGING: Print out the string from rocksDB
+                    // std::cerr << rocksEntry.c_str() << std::endl;
+
+                    //A new object we'll deepcopy values into?
+                    rapidjson::Value thisNodeHistoryNew(rapidjson::kObjectType);
+
+                    //Iterate through the history of this individual node
+                    for ( rapidjson::Value::ConstMemberIterator itr = thisNodeHistory.MemberBegin();
+                          itr != thisNodeHistory.MemberEnd();
+                          ++itr) {   //iterate through object
+
+                        // std::cerr << itr->name.GetString() << " "; //key name
+
+                        rapidjson::Value changesetID;
+                        changesetID.SetString(itr->name.GetString(), geojson_doc.GetAllocator());
+
+                        rapidjson::Value nodeVersion(rapidjson::kObjectType);
+                        nodeVersion.SetObject();
+
+                        rapidjson::Value handle;
+                        handle.SetString(itr->value["h"].GetString(), geojson_doc.GetAllocator());
+                        nodeVersion.AddMember("h",handle,geojson_doc.GetAllocator());
+
+                        rapidjson::Value uid;
+                        uid.SetInt(itr->value["u"].GetInt());
+                        nodeVersion.AddMember("u",uid,geojson_doc.GetAllocator());
+
+                        rapidjson::Value version;
+                        version.SetInt(itr->value["i"].GetInt());
+                        nodeVersion.AddMember("i",version,geojson_doc.GetAllocator());
+
+                        rapidjson::Value timestamp;
+                        timestamp.SetInt64(itr->value["t"].GetInt64());
+                        nodeVersion.AddMember("t",timestamp,geojson_doc.GetAllocator());
+
+                        rapidjson::Value changeset;
+                        changeset.SetInt64(itr->value["c"].GetInt64());
+                        nodeVersion.AddMember("c",changeset,geojson_doc.GetAllocator());
+
+                        if(itr->value["p"].IsArray()){
+                            rapidjson::Value coordinates(rapidjson::kArrayType);
+                            coordinates.PushBack(itr->value["p"][0].GetDouble(), geojson_doc.GetAllocator());
+                            coordinates.PushBack(itr->value["p"][1].GetDouble(), geojson_doc.GetAllocator());
+                            nodeVersion.AddMember("p",coordinates,geojson_doc.GetAllocator());
+                        }
+
+                        thisNodeHistoryNew.AddMember(changesetID,nodeVersion,geojson_doc.GetAllocator());
+                    }
+
+                    nodeLocations.AddMember(nodeIDStr,thisNodeHistoryNew,geojson_doc.GetAllocator());
+
+                }else{
+                    std::cerr << "Node Lookup failed on " << *it << std::endl;
                 }
             }
-            if (!nodesHistory.Empty()){
-                geojson_doc.AddMember("nodeLocations",nodesHistory,geojson_doc.GetAllocator());
+            if (!nodeLocations.Empty()){
+                geojson_doc.AddMember("nodeLocations",nodeLocations,geojson_doc.GetAllocator());
+            }else{
+              //Node locations is empty
             }
 
         } catch (const std::exception& ex) {
@@ -91,10 +160,9 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 
     geojson_doc.Accept(writer);
-    std::cerr << std::to_string( buffer.GetSize() ) << std::endl;
-
     std::string s(buffer.GetString(), buffer.GetSize());
 
+    //Write new geojson_doc with nodeLocations to stdout
     std::cout << s << std::endl;
 }
 
