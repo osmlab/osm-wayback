@@ -49,7 +49,7 @@ namespace jsonencoding {
         changesetKey.SetString(std::to_string(node.changeset()), a);// = changesetStr; //(rapidjson::StringRef(changesetStr));
 
         if (doc.HasMember(changesetKey)){
-            if (doc[changesetKey]["i"].GetInt() > node.version() ){
+            if (unsigned(doc[changesetKey]["i"].GetInt()) > node.version() ){
                 return true;
             }else{
                 doc.RemoveMember(changesetKey);

@@ -30,6 +30,8 @@
 #include "pbf_encoding.hpp"
 #include "json_encoding.hpp"
 
+int node_lookup_failures = 0;
+
 void fetchNodeGeometries(ObjectStore* store, const std::string line) {
     rapidjson::Document geojson_doc;
 
@@ -100,6 +102,7 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
                           itr != thisNodeHistory.MemberEnd();
                           ++itr) {   //iterate through object
 
+                        //Debugging: Print the ID of the changeset
                         // std::cerr << itr->name.GetString() << " "; //key name
 
                         rapidjson::Value changesetID;
@@ -141,7 +144,7 @@ void fetchNodeGeometries(ObjectStore* store, const std::string line) {
                     nodeLocations.AddMember(nodeIDStr,thisNodeHistoryNew,geojson_doc.GetAllocator());
 
                 }else{
-                    std::cerr << "Node Lookup failed on " << *it << std::endl;
+                    node_lookup_failures++;
                 }
             }
             if (!nodeLocations.Empty()){
@@ -174,6 +177,8 @@ static inline void ltrim(std::string &s) {
 
 }
 
+
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " INDEX_DIR" << std::endl;
@@ -196,6 +201,8 @@ int main(int argc, char* argv[]) {
           std::cerr << "\rProcessed: " << (feature_count/1000) << " K features";
         }
     }
+
+    std::cerr << std::endl << "Node Lookup Failures: " << std::to_string( node_lookup_failures ) << std::endl;
 
     if(feature_count == 0) {
         std::cerr << "No features processed" << std::endl;
