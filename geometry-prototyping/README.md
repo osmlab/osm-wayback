@@ -7,6 +7,8 @@ When finished, one should be able to run:
 
 `cat <HISTORY.geojsonseq> | add_geometry <ROCKSDB> | node index.js > <HISTORY WITH GEOMETRIES> `
 
+`cat milan_v2_histories.geometry | node ~/osm-wayback/geometry-prototyping/index.js | tippecanoe -f -pk -ps -pf -Z15 -z15 -o milan_history.mbtiles --no-duplication --no-tile-stats -l topojsonhistory milan_history_topojson.geojsonseq 
+`
 
 See `GeometryReconstruction.md` for more detailed information on how these are generated per feature, but this module aims to produce two possible types of output:
 

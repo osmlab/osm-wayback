@@ -229,7 +229,7 @@ function processLine (line) {
       //Encode TopoJSON
       if(CONFIG.WRITE_TOPOJSON_HISTORY){
         try{
-          object.properties['@history'] = topojson.topology(newHistoryObject)
+          object.properties['@history'] = JSON.stringify(topojson.topology(newHistoryObject))
 
           // console.warn(JSON.stringify(object, null, 2))
 
