@@ -13,12 +13,12 @@ var NodeGeometryBuilder = require('./node-history-builder.js')
 const DEBUG = true;
 
 const CONFIG = {
-  //
+  //Choose this...
   'GEOMETRY_ONLY'                             : false, //Only @validSince, @validUntil on ALL objects
 
   //OR
-  'INCLUDE_DIFFS_ON_MAJOR_VERSIONS'           : true,
-  'INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS' : true,
+  'INCLUDE_DIFFS_ON_MAJOR_VERSIONS'           : true,//DIFFS don't go on minor versions
+  'INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS' : false,
 
   //Optional
   'INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS' : false,
@@ -198,6 +198,8 @@ function processLine (line) {
         }
       })//End @history.forEach();
 
+      totalGeometries += newHistoryObject.length;
+
       //Fix up the history of the original object?
       object.properties['@history'] = newHistoryObject;
 
@@ -229,7 +231,7 @@ function processLine (line) {
         try{
           object.properties['@history'] = topojson.topology(newHistoryObject)
 
-          console.warn(JSON.stringify(object, null, 2))
+          // console.warn(JSON.stringify(object, null, 2))
 
           string = JSON.stringify(object)
           console.log(string)

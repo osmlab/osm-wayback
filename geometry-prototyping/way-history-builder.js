@@ -2,7 +2,7 @@ var _ = require('lodash');
 
 const MINOR_VERSION_SECOND_THRESHOLD = 60*15; //15 minutes
 const CHANGESET_THRESHOLD            = 60*1   // 1 minute
-const DEBUG = 1;
+const DEBUG = 0;
 
 module.exports = function(osmObject){
 
@@ -409,10 +409,10 @@ this.buildGeometries = function(){
             properties:{
               '@version':majorVersionNumber,
               '@minorVersion':mV.minorVersion,
-              '@validSince':mV.validSince,
               '@changeset':mV.changeset,
               '@user':mV.user,
               '@uid' :mV.uid,
+              '@validSince':mV.validSince,
               '@validUntil': (j<geometries.minorVersions.length-1)? geometries.minorVersions[j+1].validSince: null
             }
           })
