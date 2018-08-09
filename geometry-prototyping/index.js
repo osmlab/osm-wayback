@@ -7,18 +7,23 @@
 
 var topojson = require("topojson");
 
-var WayGeometryBuilder  = require('./way-geometry-builder.js')
-var NodeGeometryBuilder = require('./node-geometry-builder.js')
+var WayGeometryBuilder  = require('./way-history-builder.js')
+var NodeGeometryBuilder = require('./node-history-builder.js')
 
 const DEBUG = true;
 
-const config = {
-  'INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS' : true,
-  'INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS' : false,
-  'INCLUDE_MAJOR_DIFFS'                       : true,
-  'GEOMETRY_ONLY'                             : false,
+const CONFIG = {
+  //
+  'GEOMETRY_ONLY'                             : false, //Only @validSince, @validUntil on ALL objects
 
-  //ONLY ONE OF THESE SHOULD BE SET
+  //OR
+  'INCLUDE_DIFFS_ON_MAJOR_VERSIONS'           : true,
+  'INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS' : true,
+
+  //Optional
+  'INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS' : false,
+
+  //ONLY ONE OF THESE SHOULD BE SET...
   'WRITE_HISTORY_COMPLETE_OBJECT'             : false,
   'WRITE_EVERY_GEOMETRY'                      : false,
   'WRITE_TOPOJSON_HISTORY'                    : true
@@ -29,20 +34,38 @@ var allGeometriesByteSize               = 0;
 var historyCompleteSingleObjectByteSize = 0;
 var topojsonHistoryByteSize             = 0;
 var string;
-var geometries = 0;
+
+//Logging & debug
+var linesProcessed                = 0;
+var noHistory                     = 0;
+var jsonParsingError              = 0;
+var noNodeLocations               = 0;
+var geometryBuilderFailedToDefine = 0;
+var totalGeometries               = 0;
+var emptyLines                    = 0;
+var processLineFailures           = 0;
+var topoJSONEncodingError         = 0;
 
 /*
  * Main Function
 */
 function processLine (line) {
   //If line is empty, skip
-  if (line==="") return;
+  if (line===""){
+    emptyLines++;
+    return false;
+  }
 
-  var object = JSON.parse(line);
+  try{
+    var object = JSON.parse(line);
+  }catch(e){
+    jsonParsingError++;
+    return False
+  }
 
   var geometryBuilder;
 
-  //If the object already has `@history` data
+  // All objects should have a `@history` property when they get to this stage
   if (object.properties.hasOwnProperty('@history')){
 
     //If it's a node, initialize a simpler geometry builder
@@ -51,127 +74,183 @@ function processLine (line) {
       geometryBuilder = new NodeGeometryBuilder({
         'history' : object.properties['@history'],
         'osmID'   : object.properties['@id']
-      })
+      }, CONFIG)
 
+    //If it's not a node, then it should have a nodeLocations
     }else if (object.hasOwnProperty('nodeLocations')) {
       geometryBuilder = new WayGeometryBuilder({
         'nodeLocations' : object.nodeLocations,
         'history'       : object.properties['@history'],
         'osmID'         : object.properties['@id']
-      })
+      }, CONFIG)
+    }else{
+      noNodeLocations++;
+      return false
     }
 
     if (geometryBuilder){
+      /* Populates geometryBuilder.historicalGeometries object:
+        historicalGeometries = {
+          <major Version1> : [minorVersion0, minorVersion1, minorVersion1, .. ],
+          <major Version2  : [minorVersion0, ... ],
+          ..
+        }
+      */
       geometryBuilder.buildGeometries();
-      geometries++;
 
-      //Build the output object
+      //Begin building output object
       var geometryType = object.geometry.type;
 
+      //Workout any minor versions
       var newHistoryObject = []
       var majorVersionTags = {};
 
       object.properties['@history'].forEach(function(histObj){
+
         //Reconstruct the base properties for this Major Version
         majorVersionTags = reconstructMajorOSMTags(majorVersionTags, histObj)
 
         var majorVersionKey = histObj.i;
         for(var i in geometryBuilder.historicalGeometries[majorVersionKey]){
 
+          //For nodes, i will always == 0
+
+          //TODO: Is this where this belongs?
           //Reconstruct Polygons from LineStrings, if necessary?
           if(geometryType==="Polygon" || geometryType==="MultiPolygon"){
             geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.type = "Polygon"
             geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates = [geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates]
           }
 
-          var minorVersion = {
+          var thisVersion = { //Could be minor or major
             type:"Feature",
-            geometry: geometryBuilder.historicalGeometries[majorVersionKey][i].geometry,
+            geometry:   geometryBuilder.historicalGeometries[majorVersionKey][i].geometry,
             properties: geometryBuilder.historicalGeometries[majorVersionKey][i].properties
           }
 
-          if(config.GEOMETRY_ONLY){
-            minorVersion.properties = {
+          if(CONFIG.GEOMETRY_ONLY){
+            thisVersion.properties = {
               '@validSince':geometryBuilder.historicalGeometries[majorVersionKey][i].properties['@validSince'],
               '@validUntil':geometryBuilder.historicalGeometries[majorVersionKey][i].properties['@validUntil']
             }
-          }
-
-          if(i==0){
-            if (config.INCLUDE_MAJOR_DIFFS){
-              minorVersion.properties = {...minorVersion.properties, ...histObj};
-              minorVersion.properties['@user']      = histObj.h;
-              delete minorVersion.properties.h;
-              minorVersion.properties['@uid']       = histObj.u;
-              delete minorVersion.properties.u;
-              minorVersion.properties['@changeset'] = histObj.c;
-              delete minorVersion.properties.c;
-              minorVersion.properties['@version']   = histObj.i;
-              delete minorVersion.properties.i;
-              delete minorVersion.properties.t;
-            }
-            if(config.INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS){
-              minorVersion.properties = {...minorVersion.properties, ...majorVersionTags}
-              minorVersion.properties['@id'] = object.properties['@id']
-            }
           }else{
-            if (config.INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS){
-              minorVersion.properties = {...minorVersion.properties, ...majorVersionTags}
-              minorVersion.properties['@id'] = object.properties['@id']
+            //Set basic properties from historical version (Could be minor version...)
+            thisVersion.properties['@user']      = thisVersion.properties['@user']      ||  geometryBuilder.historicalGeometries[majorVersionKey][i].h;
+            delete geometryBuilder.historicalGeometries[majorVersionKey][i].h;
+
+            thisVersion.properties['@uid']       = thisVersion.properties['@uid']       || geometryBuilder.historicalGeometries[majorVersionKey][i].u;
+
+            delete geometryBuilder.historicalGeometries[majorVersionKey][i].u;
+            thisVersion.properties['@changeset'] = thisVersion.properties['@changeset'] || geometryBuilder.historicalGeometries[majorVersionKey][i].c;
+
+            delete geometryBuilder.historicalGeometries[majorVersionKey][i].c;
+            thisVersion.properties['@version']   = thisVersion.properties['@version']   || majorVersionKey
+            delete geometryBuilder.historicalGeometries[majorVersionKey][i].i;
+
+            //DIFFS ONLY BELONG ON MAJOR VERSIONS
+            if(i==0){
+
+              if( histObj.hasOwnProperty('aA')){
+                if (CONFIG.INCLUDE_DIFFS_ON_MAJOR_VERSIONS){
+                  thisVersion.properties['aA'] = histObj.aA;
+                }
+                delete histObj.aA;
+              }
+              if( histObj.hasOwnProperty('aM')){
+                if (CONFIG.INCLUDE_DIFFS_ON_MAJOR_VERSIONS){
+                  thisVersion.properties['aM'] = histObj.aM;
+                }
+                delete histObj.aM;
+              }
+              if( histObj.hasOwnProperty('aD')){
+                if (CONFIG.INCLUDE_DIFFS_ON_MAJOR_VERSIONS){
+                  thisVersion.properties['aD'] = histObj.aD;
+                }
+                delete histObj.aD;
+              }
+
+              if(CONFIG.INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS){
+                thisVersion.properties = {...thisVersion.properties, ...majorVersionTags}
+                thisVersion.properties['@id'] = object.properties['@id'] //set the ID
+              }
+
+            }else{
+              //We're in minor versions now:
+              if (CONFIG.INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS){
+                thisVersion.properties = {...thisVersion.properties, ...majorVersionTags}
+                thisVersion.properties['@id'] = object.properties['@id']
+              }
             }
           }
 
-          delete minorVersion.properties.n;
+          if ( thisVersion.hasOwnProperty('n') ){
+            delete thisVersion.properties.n;
+          }
 
-          if (config.WRITE_EVERY_GEOMETRY){
-            string = JSON.stringify(minorVersion)
+          if (CONFIG.WRITE_EVERY_GEOMETRY){
+            string = JSON.stringify(thisVersion)
             allGeometriesByteSize += string.length;
             console.log(string)
           }
 
-          newHistoryObject.push(minorVersion)
+          newHistoryObject.push(thisVersion)
 
         }
-      })
+      })//End @history.forEach();
 
       //Fix up the history of the original object?
       object.properties['@history'] = newHistoryObject;
-      delete object.nodeLocations;
-      delete object.properties['@way_nodes']
 
-      if(config.GEOMETRY_ONLY){
+      if (object.hasOwnProperty('nodeLocations') ){
+        delete object.nodeLocations;
+      }
+
+      if (object.properties.hasOwnProperty('@way_nodes') ){
+        delete object.properties['@way_nodes']
+      }
+
+      //Strip properties of base object as well?
+      if(CONFIG.GEOMETRY_ONLY){
         object.properties = {
           '@validSince' : object.properties['@timestamp'],
+          '@validUntil' : false,
           '@history'    : object.properties['@history']
         }
       }
 
-      if(config.WRITE_HISTORY_COMPLETE_OBJECT){
+      if(CONFIG.WRITE_HISTORY_COMPLETE_OBJECT){
         string = JSON.stringify(object)
         historyCompleteSingleObjectByteSize += string.length;
         console.log(string)
       }
 
       //Encode TopoJSON
-      if(config.WRITE_TOPOJSON_HISTORY){
+      if(CONFIG.WRITE_TOPOJSON_HISTORY){
         try{
           object.properties['@history'] = topojson.topology(newHistoryObject)
+
+          console.warn(JSON.stringify(object, null, 2))
+
           string = JSON.stringify(object)
           console.log(string)
           topojsonHistoryByteSize += string.length;
-        }catch(err){
-          console.error("err")
+        }catch(e){
+          topoJSONEncodingError++;
+          return false
         }
       }
+    }else{
+      geometryBuilderFailedToDefine++;
     }
 
     //TODO: add geometries even if there is no history?
   }else{
-    //If there is no history, let's just write it back out...
+    //There was no history? log it and write the object back out.
+    noHistory++;
     console.log(line)
   }
-
-  process.stderr.write(`\r${geometries} processed`);
+  //If we got here, it all ran :)
+  return true;
 }
 
 /**
@@ -203,9 +282,32 @@ function reconstructMajorOSMTags(baseObject,newObject){
 
 console.error("Beginning Geometry Reconstruction")
 
+//TODO: Parallelize
+
 process.stdin.pipe(require('split')())
-  .on('data', processLine)
+  .on('data', function(x){
+    if (processLine(x)){
+      linesProcessed++;
+    }else{
+      processLineFailures++;
+    }
+    if (linesProcessed%1000==0){
+      process.stderr.write(`\r${linesProcessed} lines processed`);
+    }
+  })
   .on('end',function(){
+    process.stderr.write(`\n\n================== REPORT ==================`);
+    process.stderr.write(`\n-- Objects Processed:               ${linesProcessed}`);
+    process.stderr.write(`\n-- Total Geometries Processsed:     ${totalGeometries}`);
+    process.stderr.write(`\n\n------------------ ERRORS ------------------`);
+    process.stderr.write(`\n-- Objects without @history attribute: ${noHistory}`);
+    process.stderr.write(`\n-- TopoJSON encoding errors:           ${topoJSONEncodingError}`);
+    process.stderr.write(`\n-- Missing nodeLocations object:       ${noNodeLocations}`);
+    process.stderr.write(`\n-- JSON parsing errors:                ${jsonParsingError}`);
+    process.stderr.write(`\n-- Failed to define geometryBuilder:   ${geometryBuilderFailedToDefine}`);
+    process.stderr.write(`\n-- Empty lines in input:               ${emptyLines}`);
+    process.stderr.write(`\n-- total processLine() concerns:       ${processLineFailures}`);
+
     process.stderr.write(`\n\nOutput Sizes (based on string length):`);
     process.stderr.write(`\n--Individual Geometries    : ${ (allGeometriesByteSize / (1024*1024)).toFixed(1)} MB`);
     process.stderr.write(`\n--History Object           : ${ (historyCompleteSingleObjectByteSize / (1024*1024)).toFixed(1)} MB`);

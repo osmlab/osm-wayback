@@ -2,7 +2,7 @@ var _ = require('lodash');
 
 const MINOR_VERSION_SECOND_THRESHOLD = 60*15; //15 minutes
 const CHANGESET_THRESHOLD            = 60*1   // 1 minute
-const DEBUG = 0;
+const DEBUG = 1;
 
 module.exports = function(osmObject){
 
