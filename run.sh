@@ -20,7 +20,7 @@ echo "|| Step 1: Create Lookup Index from history file ||"
 echo "==================================================="
 echo ""
 echo "* build_lookup_index $2_INDEX $1"
-build/build_lookup_index $2_INDEX $1
+time build/build_lookup_index $2_INDEX $1
 
 echo""
 echo "=============================================="
@@ -28,7 +28,7 @@ echo "|| Step 2: Feed GeoJSONSeq into add_history ||"
 echo "=============================================="
 echo ""
 echo "* cat $2.geojsonseq | build/add_history $2_INDEX > $2.history"
-cat $2.geojsonseq | build/add_history $2_INDEX > $2.history
+time cat $2.geojsonseq | build/add_history $2_INDEX > $2.history
 
 echo ""
 echo "================================================"
@@ -37,7 +37,7 @@ echo "================================================"
 echo ""
 echo "* cat $2.history | build/add_geometry $2_INDEX"
 echo ""
-cat $2.history | build/add_geometry $2_INDEX > $2.history.geometries
+time cat $2.history | build/add_geometry $2_INDEX > $2.history.geometries
 
 echo ""
 echo "======================================================="
@@ -45,7 +45,7 @@ echo "|| Step 4: Create TopoJSON Histories from Geometries ||"
 echo "======================================================="
 echo ""
 echo "* cat $2.history.geometries | node geometry-prototyping/index.js > $2_historical_geometries_topojson.geojsonseq"
-cat $2.history.geometries | node geometry-prototyping/index.js > $2_historical_geometries_topojson.geojsonseq
+time cat $2.history.geometries | node geometry-prototyping/index.js > $2_historical_geometries_topojson.geojsonseq
 
 echo ""
 echo "==============================================="
@@ -53,4 +53,4 @@ echo "|| Step 5: Run geojsonseq through tippecanoe ||"
 echo "==============================================="
 echo ""
 echo "* tippecanoe -Pf -pf -pk -ps -Z15 -z15 --no-tile-stats -o $2_historical.mbtiles $2_historical_geometries_topojson.geojsonseq"
-tippecanoe -Pf -pf -pk -ps -Z15 -z15 --no-tile-stats -o $2_historical.mbtiles $2_historical_geometries_topojson.geojsonseq
+time tippecanoe -Pf -pf -pk -ps -Z15 -z15 --no-tile-stats -o $2_historical.mbtiles $2_historical_geometries_topojson.geojsonseq
