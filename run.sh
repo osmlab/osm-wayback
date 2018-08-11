@@ -1,0 +1,56 @@
+#!/bin/bash
+clear
+echo ""
+echo "Running OSM-Wayback for history file:"
+echo "--Input history file: $1"
+echo "--Base file name:     $2"
+echo ""
+echo "Preparation Step 1: osmium time-filter"
+osmium time-filter --overwrite -o $2.osm.pbf $1
+echo "Preparation Step 2: osmium export"
+osmium export -c ~/Sites/osm-qa-tiles/osm-qa-tile.osmiumconfig -f geojsonseq $2.osm.pbf > $2.geojsonseq
+
+echo ""
+echo "Now beginning OSM-Wayback"
+echo "-------------------------"
+echo "Commands that excecute are denoted with (*)"
+echo ""
+echo "==================================================="
+echo "|| Step 1: Create Lookup Index from history file ||"
+echo "==================================================="
+echo ""
+echo "* build_lookup_index $2_INDEX $1"
+build/build_lookup_index $2_INDEX $1
+
+echo""
+echo "=============================================="
+echo "|| Step 2: Feed GeoJSONSeq into add_history ||"
+echo "=============================================="
+echo ""
+echo "* cat $2.geojsonseq | build/add_history $2_INDEX > $2.history"
+cat $2.geojsonseq | build/add_history $2_INDEX > $2.history
+
+echo ""
+echo "================================================"
+echo "|| Step 3: Enrich history file with locations ||"
+echo "================================================"
+echo ""
+echo "* cat $2.history | build/add_geometry $2_INDEX"
+echo ""
+cat $2.history | build/add_geometry $2_INDEX > $2.history.geometries
+
+echo ""
+echo "======================================================="
+echo "|| Step 4: Create TopoJSON Histories from Geometries ||"
+echo "======================================================="
+echo ""
+echo "* cat $2.history.geometries | node geometry-prototyping/index.js > $2_historical_geometries_topojson.geojsonseq"
+cat $2.history.geometries | node geometry-prototyping/index.js > $2_historical_geometries_topojson.geojsonseq
+
+echo ""
+echo "==============================================="
+echo "|| Step 5: Run geojsonseq through tippecanoe ||"
+echo "==============================================="
+echo ""
+echo "* tippecanoe -Pf -pf -pk -ps -Z15 -z15 --no-tile-stats -o $2_historical.mbtiles $2_historical_geometries_topojson.geojsonseq"
+tippecanoe -Pf -pf -pk -ps -Z15 -z15 --no-tile-stats -o $2_historical.mbtiles $2_historical_geometries_topojson.geojsonseq

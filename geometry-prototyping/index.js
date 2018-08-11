@@ -17,8 +17,8 @@ const CONFIG = {
   'GEOMETRY_ONLY'                             : false, //Only @validSince, @validUntil on ALL objects
 
   //OR
-  'INCLUDE_DIFFS_ON_MAJOR_VERSIONS'           : true,//DIFFS don't go on minor versions
-  'INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS' : false,
+  'INCLUDE_DIFFS_ON_MAJOR_VERSIONS'           : false,//DIFFS don't go on minor versions
+  'INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS' : true,
 
   //Optional
   'INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS' : false,
