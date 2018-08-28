@@ -240,7 +240,13 @@ function processLine (line) {
         try{
           object.properties['@history'] = JSON.stringify(topojson.topology(newHistoryObject))
 
+          //Come back to this: If there is support for byte arrays, we can use.
           // console.warn(JSON.stringify(object, null, 2))
+          // var buffer = Buffer.from(object.properties['@history'], 'utf-8')
+          // var byteArray = JSON.stringify(buffer.toJSON().data)
+          // console.log(byteArray);
+          // var hopeItWorked = Buffer.from(JSON.parse(byteArray)).toString('utf-8')
+          // console.log(hopeItWorked)
 
           string = JSON.stringify(object)
           console.log(string)
