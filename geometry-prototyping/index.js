@@ -9,6 +9,7 @@ var topojson = require("topojson");
 
 var WayGeometryBuilder  = require('./way-history-builder.js')
 var NodeGeometryBuilder = require('./node-history-builder.js')
+var RelationGeometryBuilder = require('./relation-history-builder.js')
 
 const DEBUG = true;
 
@@ -83,6 +84,12 @@ function processLine (line) {
         'history'       : object.properties['@history'],
         'osmID'         : object.properties['@id']
       }, CONFIG)
+    }else if (object.properties['@type']==='relation'){
+      geometryBuilder = new RelationGeometryBuilder({
+        'history'       : object.properties['@history'],
+        'osmID'         : object.properties['@id'],
+        'geometry'      : object.geometry
+      })
     }else{
       noNodeLocations++;
       return false
@@ -116,10 +123,12 @@ function processLine (line) {
           //For nodes, i will always == 0
 
           //TODO: Is this where this belongs?
-          //Reconstruct Polygons from LineStrings, if necessary?
-          if(geometryType==="Polygon" || geometryType==="MultiPolygon"){
-            geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.type = "Polygon"
-            geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates = [geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates]
+          //Reconstruct Polygons from LineStrings for ways
+          if (object.properties['@type']=='way'){
+            if(geometryType==="Polygon" || geometryType==="MultiPolygon"){
+              geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.type = "Polygon"
+              geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates = [geometryBuilder.historicalGeometries[majorVersionKey][i].geometry.coordinates]
+            }
           }
 
           var thisVersion = { //Could be minor or major
