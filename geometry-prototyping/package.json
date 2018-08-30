@@ -10,8 +10,6 @@
   "license": "ISC",
   "dependencies": {
     "pbf": "^3.1.0",
-    "rocksdb": "^2.0.0",
-    "rocksdb-node": "^1.7.2",
     "split": "^1.0.1",
     "topojson": "^3.0.2"
   }
