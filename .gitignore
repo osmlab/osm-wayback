@@ -1,6 +1,5 @@
 # Prerequisites
 *.d
-.mason/
 mason_packages/
 build/
 

@@ -6,9 +6,9 @@ echo "--Input history file: $1"
 echo "--Base file name:     $2"
 echo ""
 echo "Preparation Step 1: osmium time-filter"
-osmium time-filter --overwrite -o $2.osm.pbf $1
+mason_packages/.link/bin/osmium time-filter --overwrite -o $2.osm.pbf $1
 echo "Preparation Step 2: osmium export"
-osmium export -c ~/Sites/osm-qa-tiles/osm-qa-tile.osmiumconfig -f geojsonseq $2.osm.pbf > $2.geojsonseq
+mason_packages/.link/bin/osmium export -c ~/Sites/osm-qa-tiles/osm-qa-tile.osmiumconfig -f geojsonseq $2.osm.pbf > $2.geojsonseq
 
 echo ""
 echo "Now beginning OSM-Wayback"
