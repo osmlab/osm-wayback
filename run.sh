@@ -35,7 +35,7 @@ echo "================================================"
 echo "|| Step 3: Enrich history file with locations ||"
 echo "================================================"
 echo ""
-echo "* cat $2.history | build/add_geometry $2_INDEX"
+echo "* cat $2.history | build/add_geometry $2_INDEX > $2.history.geometries"
 echo ""
 time cat $2.history | build/add_geometry $2_INDEX > $2.history.geometries
 
