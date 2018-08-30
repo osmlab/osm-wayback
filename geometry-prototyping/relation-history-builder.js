@@ -3,7 +3,7 @@ var _ = require('lodash');
 // THIS IS A GEOMETRY FAKER...
 
 const CHANGESET_THRESHOLD            = 60 * 5   // 5 minutes
-const DEBUG = true;
+const DEBUG = false;
 
 var validSince
 var validUntil
