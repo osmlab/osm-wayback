@@ -52,5 +52,5 @@ echo "==============================================="
 echo "|| Step 5: Run geojsonseq through tippecanoe ||"
 echo "==============================================="
 echo ""
-echo "* tippecanoe -Pf -pf -pk -ps -Z15 -z15 --no-tile-stats -o $2_historical.mbtiles $2_historical_geometries_topojson.geojsonseq"
-time tippecanoe -Pf -pf -pk -ps -Z15 -z15 --no-tile-stats -o $2_historical.mbtiles $2_historical_geometries_topojson.geojsonseq
+echo "* tippecanoe -Pf -pf -pk -ps -Z15 -z15 --no-tile-stats --no-duplication -o $2_historical.mbtiles -l historical_topojson $2_historical_geometries_topojson.geojsonseq"
+time tippecanoe -Pf -pf -pk -ps -Z15 -z15 --no-tile-stats --no-duplication -o $2_historical.mbtiles -l historical_topojson $2_historical_geometries_topojson.geojsonseq
