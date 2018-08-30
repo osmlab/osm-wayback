@@ -3,15 +3,15 @@
 
 Creates a [RocksDB](//rocksdb.org) key-value store of each version of OSM objects found in OSM history files. This history index can then be used to augment GeoJSON files of OSM objects to add a `@history` property that includes a record of all _previous_ edits.
 
-:rocket: Final goal is to create historic geometries for each intermediate version of an OSM feature.
+osm-wayback is currently designed to support large(ish)-scale historical analysis of OpenStreetMap edits, specifically focused on how objects change overtime (and who is editing them).
 
-#### Notes:
+#### Current Development Notes:
 
 1. The history is index is keyed by `osm-id`+"!"+`version` (with separate column families for nodes, ways, and relations).
 
 2. `add_history` will lookup every previous version of an object passed into it. If an object is passed in at version 3, it will look up versions 1,2, and 3. This is necessary for the tag comparisons. In the event there exists a version 4 in the index, it will not be included because version 3 was fed into `add_history`.
 
-3. Since `add_history` is driven by a stream of GeoJSON objects, deleted objects are not supported.
+3. Since `add_history` is driven by a stream of (current, valid) GeoJSON objects, deleted objects are not yet supported.
 
 ## Build
 
@@ -41,72 +41,10 @@ build_lookup_index INDEX_DIR OSM_HISTORY_FILE
 Second, pass a stream of GeoJSON features as produced by [osmium-export](http://docs.osmcode.org/osmium/latest/osmium-export.html) to the `add_history` function
 
 ```
-cat features.geojson | add_history INDEX_DIR
+cat features.geojsonseq | add_history INDEX_DIR
 ```
 
 The output is a stream of augmented GeoJSON features with an additional `@history` array of the following schema.
-
-## Historical Feature Schema for TAGS
-OSM objects that have history will have an extra attribute, `@history`. This history object is an array of individual historical versions and is stored in the properties of the main GeoJSON Feature. 
-The final object in the history array is the current version of the object. This allows tag changes to be easily tracked between all versions.
-
-```
-"@history": [
-  <history object version 1>,
-  <history object version 2>,
-  ...
-  <current version of object>
- ]
-```
- 
-It should be noted that not all versions of an object may be included. Relying on solely the version number is not a guarantee. Previous versions may be missing for a variety of reasons including redaction, deletion of all tags, etc.
-
-### History Objects
-
-Similar to the standard OSM-QA tile, each of the standard OSM object properties are recorded, but they are simplified to save space in the final JSON. This simplification reduces final file sizes by up to 10%.
-
-```
-@version   --> i  // (iteration)
-@changeset --> c
-@timestamp --> t
-@uid       --> u
-@user      --> h  // (handle)
-```
-
-### Additional Attributes
-#### 1. Tags
-
-Tags are removed from the historical versions objects and only the diffs recorded. While this will require iterating over the tags in history to reconstruct them exactly per version, it has two worthy benefits: 1) Easily see when tags were added/changed/deleted and 2) limited duplication of data.
-
-For schema simplification, tags can be thought of as "attributes" and represented by the key "a".
-
-There are four possible outcomes when comparing two versions:
-
-1. **Nothing** is changed regarding attributes.
-1. **attributes Added** (`aA`): A user adds a new tag to the object.
-1. **attributes Deleted** (`aD`): Tags are removed from one version to the next.
-1. **attributes Modified** (`aM`): The value of attribute(s) are changed. Name expansion, for example: `Elm St.` --> `Elm Street`. In this case, we record both the previous value and the new value with this version so that the change can be easily referenced without looking at previous versions.
-
-```
-"aA" : {
-  "key1" : "value1",
-  "key2" : "value2"
-},
-"aD": {
-   "previous key 1" : "previous value 1",
-   "previous key 2" : "previous value 2"
-},
-"aM": {
-  "key1" : [
-    "previous value",
-    "new value"
-  ],
-  "key2" : [
-    "previous value 2",
-    "new value 2"
-  ]
-}
-```
 
 
 ## Performance
@@ -119,7 +57,7 @@ Timewise, here are some rough estimates, these were run  locally on a 2013 Macbo
 
 `build_lookup_index`
 
-| .osh.pbf file | Nodes | INDEX   | ~ Time (seconds)| 
+| .osh.pbf file | Nodes | INDEX   | ~ Time (seconds)|
 |---------------|-------|---------|-----------------|
 | ~ 7 MB        | 0.5M  | ~ 50 MB |  1           |
 | ~ 50 MB       | 5M    | ~ 650 MB|  13
@@ -129,7 +67,7 @@ Timewise, here are some rough estimates, these were run  locally on a 2013 Macbo
 <hr>
 `add_history`
 
-| GeoJSON Features | Additional history<br>versions added| Time (seconds)| 
+| GeoJSON Features | Additional history<br>versions added| Time (seconds)|
 |------------------|---------------------|---------------|
 | 56k              | 95k                 | 4             |
 | 820k             | 973k                | 57            |
@@ -137,3 +75,25 @@ Timewise, here are some rough estimates, these were run  locally on a 2013 Macbo
 _Estimate ~ 1M input features per minute?_
 
 (For reference, there are about ~600M GeoJSON features in the daily planet file).
+
+## Historic Geometries
+A fourth column family storing node locations can be created during `build_lookup_index`, depending on the value of the variable, `LOC` in `build_lookup_index.cpp`.
+
+If the node location column family exists, the <HISTORY GEOJSONSEQ> may be passed to `add_geometry`. This function looks up every version of every node in each historical version of the object. It adds `nodeLocations` as a top-level dictionary, keyed by `node ID` and then `changeset ID` for each node.
+
+```
+cat <HISTORY GEOJSONSEQ> | add_geometry <ROCKSDB> > <HISTORY GEOJSONSEQ with Node Locations>
+```
+
+From here, this stream is passed into `geometry-prototyping/index.js` to reconstruct major and minor geometry versions for every object. This can be done in one step with the following command:
+
+```
+cat <HISTORY GEOJSONSEQ> | ../build/add_geometry <ROCKSDB> | node index.js > <HISTORY GEOJSONSEQ with Geometry>
+```
+
+See [geometry-prototyping/README.md](geometry-prototyping/README.md) for more information on which options are available and the description fo the schema in [HISTORICAL_SCHEMA_V1.md](HISTORICAL_SCHEMA_V1.md) for the pros and cons of each schema.
+
+Currently, 3 output types are supported:
+1. Every major and minor version are independent objects (Best for rendering historical geometries)
+2. Entries in the `@history` object include `geometry` attribute (Best for historical analysis)
+3. The `@history` object is a TopoJSON object, storing every version of the object. (More efficient than 2.)

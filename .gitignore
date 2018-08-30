@@ -1,6 +1,5 @@
 # Prerequisites
 *.d
-.mason/
 mason_packages/
 build/
 
@@ -46,3 +45,5 @@ test/history-geojson/*
 test/geojson/nepal.geojsonl
 nepal.osh.pbf
 *.tar
+
+*.mbtiles

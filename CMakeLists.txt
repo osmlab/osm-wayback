@@ -59,9 +59,12 @@ set(ALL_LIBRARIES ${CMAKE_THREAD_LIBS_INIT} ${EXPAT_LIBRARIES} ${ROCKSDB_LIBRARI
 #----------------------------------------------------------------------
 add_executable(build_lookup_index build_lookup_index.cpp)
 add_executable(add_history add_history.cpp)
+add_executable(add_geometry add_geometry.cpp)
 
 target_link_libraries(build_lookup_index ${ALL_LIBRARIES})
 target_link_libraries(add_history ${ALL_LIBRARIES})
+target_link_libraries(add_geometry ${ALL_LIBRARIES})
+
 #-----------------------------------------------------------------------------
 #
 #  Optional "cppcheck" target that checks C++ code

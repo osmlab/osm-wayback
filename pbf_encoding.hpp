@@ -9,7 +9,6 @@
 #include "rapidjson/document.h"
 
 #include <osmium/osm/types.hpp>
-#include <map>
 
 namespace osmwayback {
 
@@ -51,7 +50,7 @@ namespace osmwayback {
                 encoder.add_double(9, node.location().lat());
             } catch (const osmium::invalid_location& ex) {
                 //Catch invlid locations, not sure why this would happen... but it could
-                std::cerr<< ex.what() << std::endl;
+                //std::cerr<< ex.what() << std::endl;
             }
         }
 
@@ -89,10 +88,9 @@ namespace osmwayback {
         for (const osmium::Tag& tag : tags) {
           encoder.add_string(10, tag.key());
           encoder.add_string(10, tag.value());
-      }
-      return data;
+        }
+        return data;
     }
-
 
 /*
     PBF Object Decoding
@@ -151,6 +149,7 @@ namespace osmwayback {
                     doc->AddMember("h", message.get_string(), a);
                     break;
                 case 6:
+                    message.get_bool();
                     // doc->AddMember("v", message.get_bool(), a);
                     break;
                 case 7:
@@ -160,11 +159,11 @@ namespace osmwayback {
                     }
                     break;
                 case 8:
-                      coordinates.PushBack(message.get_double(),a);
-                      break;
+                    coordinates.PushBack(message.get_double(),a);
+                    break;
                 case 9:
-                      coordinates.PushBack(message.get_double(),a);
-                      break;
+                    coordinates.PushBack(message.get_double(),a);
+                    break;
                 case 10:
                 //Tags
                     if (previous_key.empty()) {
@@ -206,6 +205,7 @@ namespace osmwayback {
 
         protozero::iterator_range<protozero::pbf_reader::const_int64_iterator> nodeIDs;
 
+        bool deleted;
         while (message.next()) {
             switch (message.tag()) {
                 case 1:
@@ -224,10 +224,14 @@ namespace osmwayback {
                     doc->AddMember("h", message.get_string(), a);
                     break;
                 case 6:
-                    doc->AddMember("v", message.get_bool(), a);
+                    message.get_bool();
+                    // doc->AddMember("v", message.get_bool(), a);
                     break;
                 case 7:
-                    doc->AddMember("d", message.get_bool(), a);
+                    deleted = message.get_bool();
+                    if (deleted){
+                      doc->AddMember("d", deleted, a);
+                    }
                     break;
                 case 8:
                     //Node refs
@@ -260,73 +264,5 @@ namespace osmwayback {
         if ( !object_tags.ObjectEmpty() ){
             doc->AddMember("a",object_tags, a);
         }
-    }
-
-
-
-/*
-
-    JSON Object Encoding
-    ====================
-
-    These functions convert osmium objects to json objects (rapidjson::Document)
-
-    These are primarily used to add json strings to rocksdb so will likely be deprecated shortly.
-
-*/
-
-    /*
-      Extract only primary properties
-    */
-    rapidjson::Document extract_primary_properties(const osmium::OSMObject& object){
-        rapidjson::Document doc;
-        doc.SetObject();
-
-        rapidjson::Document::AllocatorType& a = doc.GetAllocator();
-
-        // doc.AddMember("t", object.timestamp().to_iso(), a);
-        doc.AddMember("t", uint32_t(object.timestamp()), a);
-        doc.AddMember("c", object.changeset(), a);
-        doc.AddMember("i", object.version(), a);   //i for iteration (version)
-
-        return doc;
-    }
-
-    /*
-      Extract main OSM properties from the object
-    */
-    rapidjson::Document extract_osm_properties(const osmium::OSMObject& object){
-        rapidjson::Document doc;
-        doc.SetObject();
-
-        rapidjson::Document::AllocatorType& a = doc.GetAllocator();
-
-        // doc.AddMember("t", object.timestamp().to_iso(), a); //ISO is helpful for debugging, but should we leave as int?
-        doc.AddMember("t", uint32_t(object.timestamp()), a);
-        doc.AddMember("v", object.visible(), a);
-        doc.AddMember("h", std::string{object.user()}, a); //handle
-        doc.AddMember("u", object.uid(), a);
-        doc.AddMember("c", object.changeset(), a); //
-        doc.AddMember("i", object.version(), a);   //i for iteration (version)
-
-        //Extra
-        if (object.deleted()){
-            doc.AddMember("d", object.deleted(), a);
-        }
-
-        //Tags
-        const osmium::TagList& tags = object.tags();
-
-        rapidjson::Value object_tags(rapidjson::kObjectType);
-        for (const osmium::Tag& tag : tags) {
-            rapidjson::Value key(rapidjson::StringRef(tag.key()));
-            rapidjson::Value value(rapidjson::StringRef(tag.value()));
-
-            object_tags.AddMember(key, value, a);
-        }
-        //a for attributes
-        doc.AddMember("a", object_tags, a);
-
-        return doc;
     }
 }

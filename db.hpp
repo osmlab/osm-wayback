@@ -13,16 +13,22 @@
 #include <rocksdb/filter_policy.h>
 #include <rocksdb/cache.h>
 #include <rocksdb/write_batch.h>
+#include "rocksdb/slice.h"
+#include "rocksdb/options.h"
+#include "rocksdb/advanced_options.h"
+#include "rocksdb/slice_transform.h"
 
 #include <osmium/osm/types.hpp>
 #include <osmium/visitor.hpp>
 
 #include <chrono>
+#include <string.h>
 
-#include "pbf_json_encoding.hpp"
+#include "pbf_encoding.hpp"
+#include "json_encoding.hpp"
 
-const std::string make_lookup(const int64_t osm_id, const int version){
-  return std::to_string(osm_id) + "!" + std::to_string(version);
+const std::string make_lookup(int64_t osm_id, const int version){
+  return std::to_string(osm_id) +"!"+  std::to_string(version);
 }
 
 const bool STORE_GEOMETRIES = true;
@@ -32,8 +38,10 @@ class ObjectStore {
     rocksdb::ColumnFamilyHandle* m_cf_ways;
     rocksdb::ColumnFamilyHandle* m_cf_nodes;
     rocksdb::ColumnFamilyHandle* m_cf_relations;
-    rocksdb::WriteOptions m_write_options;
+    rocksdb::ColumnFamilyHandle* m_cf_locations; //The location CF
+    //rocksdb::ColumnFamilyHandle* m_cf_changesets; //Not used (yet)
 
+    rocksdb::WriteOptions m_write_options;
     rocksdb::WriteBatch m_buffer_batch;
 
     void flush_family(const std::string type, rocksdb::ColumnFamilyHandle* cf) {
@@ -66,6 +74,10 @@ class ObjectStore {
         uint64_t relation_keys{0};
         m_db->GetIntProperty(m_cf_relations, "rocksdb.estimate-num-keys", &relation_keys);
         std::cerr << "~" << relation_keys  << "/" << stored_relations_count << " relations" << std::endl;
+
+        uint64_t loc_keys{0};
+        m_db->GetIntProperty(m_cf_locations, "rocksdb.estimate-num-keys", &loc_keys);
+        std::cerr << "Stored ~" << loc_keys << " node keys for location " << std::endl;
     }
 
 public:
@@ -73,6 +85,7 @@ public:
     unsigned long stored_tags_count{0};
 
     unsigned long stored_nodes_count{0};
+    unsigned long stored_locations_count{0};
     unsigned long stored_ways_count{0};
     unsigned long stored_relations_count{0};
 
@@ -94,33 +107,50 @@ public:
 
         rocksdb::BlockBasedTableOptions table_options;
         table_options.filter_policy = std::shared_ptr<const rocksdb::FilterPolicy>(rocksdb::NewBloomFilterPolicy(10));
+        // table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10, true));
         db_options.table_factory.reset(NewBlockBasedTableFactory(table_options));
 
         rocksdb::Status s;
 
         if(create) {
-            // always clear out the previous tag index first
+            // Open the DB in create mode:
+            //
+            // 1. Clear out the previous INDEX
+            // 2. Push back all column families
+            //
+            std::cerr << "Opening Database For Writing" << std::endl;;
             rocksdb::DestroyDB(index_dir, db_options);
             db_options.create_if_missing = true;
             s = rocksdb::DB::Open(db_options, index_dir, &m_db);
+
             s = m_db->CreateColumnFamily(rocksdb::ColumnFamilyOptions(), "nodes", &m_cf_nodes);
             assert(s.ok());
+
+            s = m_db->CreateColumnFamily(rocksdb::ColumnFamilyOptions(), "locations", &m_cf_locations);
+            assert(s.ok());
+
             s = m_db->CreateColumnFamily(rocksdb::ColumnFamilyOptions(), "ways", &m_cf_ways);
             assert(s.ok());
+
             s = m_db->CreateColumnFamily(rocksdb::ColumnFamilyOptions(), "relations", &m_cf_relations);
             assert(s.ok());
+
+        // Open the database for read-only
         } else {
             db_options.error_if_exists = false;
             db_options.create_if_missing = false;
-            std::cerr << "Open without create";
-            // open DB with two column families
+            std::cerr << "Opening Database READONLY" << std::endl;;
+
+            //Open column families
             std::vector<rocksdb::ColumnFamilyDescriptor> column_families;
-            // have to open default column family
+
+            // Open default column family?
             column_families.push_back(rocksdb::ColumnFamilyDescriptor(
             rocksdb::kDefaultColumnFamilyName, rocksdb::ColumnFamilyOptions()));
 
-            // specifiy the existing column family
+            // Specifiy the existing column families
             column_families.push_back(rocksdb::ColumnFamilyDescriptor( "nodes", rocksdb::ColumnFamilyOptions()));
+            column_families.push_back(rocksdb::ColumnFamilyDescriptor( "locations", rocksdb::ColumnFamilyOptions()));
             column_families.push_back(rocksdb::ColumnFamilyDescriptor( "ways", rocksdb::ColumnFamilyOptions()));
             column_families.push_back(rocksdb::ColumnFamilyDescriptor( "relations", rocksdb::ColumnFamilyOptions()));
 
@@ -129,15 +159,19 @@ public:
             s = rocksdb::DB::OpenForReadOnly(db_options, index_dir, column_families, &handles, &m_db);
             assert(s.ok());
 
-            m_cf_nodes = handles[1];
-            m_cf_ways = handles[2];
-            m_cf_relations = handles[3];
+            m_cf_nodes     = handles[1];
+            m_cf_locations = handles[2];
+            m_cf_ways      = handles[3];
+            m_cf_relations = handles[4];
         }
     }
 
     rocksdb::Status get_tags(const int64_t osm_id, const int osm_type, const int version, std::string* value) {
-        const auto lookup = make_lookup(osm_id, version);
+        //
+        // Lookup a specific version of an object in the DB
+        //
 
+        const auto lookup = make_lookup(osm_id, version);
         // Node
         if(osm_type== 1) {
             return m_db->Get(rocksdb::ReadOptions(), m_cf_nodes, lookup, value);
@@ -148,6 +182,10 @@ public:
         } else {
             return m_db->Get(rocksdb::ReadOptions(), m_cf_relations, lookup, value);
         }
+    }
+
+    rocksdb::Status get_node_locations(const std::string nodeID, std::string* value) {
+        return m_db->Get(rocksdb::ReadOptions(), m_cf_locations, nodeID, value);
     }
 
 /*
@@ -181,105 +219,48 @@ public:
       }
     }
 
+    /*  Looks up a NODE ID and performs an upsert to the locations CF, adding new historical
+     *    versions to it, keyed by changeset.
+     */
+    void upsert_node_location(const osmium::Node& node){
 
+        rapidjson::Document nodeLocations;
 
-/*
-    Store JSON Objects in RocksDB
+        std::string rocksEntry;
 
-    (Less efficient for large areas, but useful for debugging)
-*/
+        //First, extract location information from this node.
+        std::string nodeKey = std::to_string(node.id());
 
-    void store_json_node(const osmium::Node& node) {
-        rapidjson::Document json;
+        rocksdb::Status s = m_db->Get(rocksdb::ReadOptions(), m_cf_locations, nodeKey, &rocksEntry);
 
-        //If there are no tags, do things differently
-        if (node.tags().empty()) {
-            //If we're not storing geometries, skip.
-            if (!STORE_GEOMETRIES){
-                empty_objects_count++;
-                return;
-            //We are storing at least geometries, so we need basic attributes
-            }else{
-                //If it's version 1, it should match a changeset, skip all properties
-                if (node.version()==1){
-                    //No tags & version 1: store only changeset INFO
-                    json = osmwayback::extract_primary_properties(node);
-                }else{
-                    json = osmwayback::extract_osm_properties(node);
-                }
-            }
-        } else {
-            //There are tags, so get everything
-            // rapidjson::Document json;
-            json = osmwayback::extract_osm_properties(node);
+        if ( s.IsNotFound() ){
+            //There is not value at that key, so start the object
+            nodeLocations.SetObject();
+        }else{
+            //nodeLocations is a JSON object...
+            nodeLocations.Parse<0>(rocksEntry.c_str());
         }
+        //Add this changeset to the node
+        if( jsonencoding::encode_location_json(node, nodeLocations) ){
+            rapidjson::StringBuffer buffer;
+            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+            nodeLocations.Accept(writer);
 
-        std::string lookup = make_lookup( node.id(), node.version() );
+            rocksdb::Status stat = m_db->Put(rocksdb::WriteOptions(), m_cf_locations, nodeKey, buffer.GetString());
 
-        //If the node was not deleted, then store it's coordinates (if desired)
-        if( !node.deleted() && STORE_GEOMETRIES){
-            try{
-              rapidjson::Document::AllocatorType& a = json.GetAllocator();
-              rapidjson::Value coordinates(rapidjson::kArrayType);
-              coordinates.PushBack(node.location().lon(), a);
-              coordinates.PushBack(node.location().lat(), a);
-              json.AddMember("g", coordinates, a); //g for geometry
-
-            } catch (const osmium::invalid_location& ex) {
-              //Catch invlid locations, not sure why this would happen... but it could
-              std::cerr<< ex.what() << std::endl;
+            if ( stat.ok() ){
+                stored_locations_count++;
             }
         }
-
-        if(store_json_object(json, lookup, m_cf_nodes)) {
-            stored_nodes_count++;
-        }
-        if (stored_nodes_count != 0 && (stored_nodes_count % 4000000) == 0) {
-            flush_family("nodes", m_cf_nodes);
-            report_count_stats();
-        }
-    }
-
-    void store_json_way(const osmium::Way& way) {
-        //Get basic properties, initialize json
-        rapidjson::Document json;
-        json = osmwayback::extract_osm_properties(way);
-
-        std::string lookup = make_lookup( way.id(), way.version() );
-
-        //Store the node refs
-        if( !way.deleted() && STORE_GEOMETRIES){
-          try{
-            rapidjson::Document::AllocatorType& a = json.GetAllocator();
-            rapidjson::Value nodes(rapidjson::kArrayType);
-
-            //iterate over the array
-            for (const osmium::NodeRef& nr : way.nodes()) {
-              nodes.PushBack(nr.ref(), a);
-            }
-
-            json.AddMember("r", nodes, a); //r for references
-
-          } catch (const std::exception& ex) {
-            //Not sure what might get thrown here
-            std::cerr<< ex.what() << std::endl;
-          }
-        }
-
-        if(store_json_object(json, lookup, m_cf_ways)) {
-            stored_ways_count++;
-        }
-
-        if (stored_ways_count != 0 && (stored_ways_count % 2000000) == 0) {
-            flush_family("ways", m_cf_ways);
-            report_count_stats();
+        if (stored_locations_count != 0 && (stored_locations_count % 1000000) == 0) {
+            flush_family("locations", m_cf_locations);
         }
     }
 
     void store_json_relation(const osmium::Relation& relation) {
         //Get basic properties, initialize json
         rapidjson::Document json;
-        json = osmwayback::extract_osm_properties(relation);
+        json = jsonencoding::extract_osm_properties(relation);
 
         std::string lookup = make_lookup( relation.id(), relation.version() );
 
@@ -334,10 +315,12 @@ public:
         flush_family("nodes",       m_cf_nodes);
         flush_family("ways",        m_cf_ways);
         flush_family("relations",   m_cf_relations);
+        flush_family("locations",   m_cf_locations);
 
         compact_family("nodes",     m_cf_nodes);
         compact_family("ways",      m_cf_ways);
         compact_family("relations", m_cf_relations);
+        compact_family("locations", m_cf_locations);
 
         report_count_stats();
     }
