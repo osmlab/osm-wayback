@@ -18,7 +18,8 @@ osm-wayback is currently designed to support large(ish)-scale historical analysi
 Install mason to manage dependencies
 
 ```
-git clone --depth 1 --branch v0.14.1 https://github.com/mapbox/mason.git .mason
+git submodule init
+git submodule update
 ```
 
 Then build with `cmake`:
