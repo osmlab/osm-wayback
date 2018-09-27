@@ -47,3 +47,5 @@ nepal.osh.pbf
 *.tar
 
 *.mbtiles
+
+geometry-prototyping/node_modules/
