@@ -20,6 +20,12 @@ Install mason to manage dependencies
 ```
 git submodule init
 git submodule update
+
+.mason/mason install osmium 1.9.1
+.mason/mason link osmium 1.9.1
+
+.mason/mason install tippecanoe 1.31.0
+.mason/mason link tippecanoe 1.31.0
 ```
 
 Then build with `cmake`:
