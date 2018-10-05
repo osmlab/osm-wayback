@@ -1,0 +1,9 @@
+#!/usr/bin/python
+import os, json
+cities = json.load(open('us-cities.json','r'))
+for city in cities['features']:
+    file = city['properties']['id']
+    inputFile = "/home/cc/full-history-utils/EXTRACTS/"+file+".osh.pbf"
+    fileRoot  = "/data/EXTRACTS/"+file
+    string = "run.sh {0} {1}".format(inputFile, fileRoot)
+    print(string)

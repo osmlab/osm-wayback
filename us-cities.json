@@ -1,0 +1,1501 @@
+{
+    "features": [
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -73.898, 
+                42.614
+              ], 
+              [
+                -73.898, 
+                42.722
+              ], 
+              [
+                -73.725, 
+                42.722
+              ], 
+              [
+                -73.725, 
+                42.614
+              ], 
+              [
+                -73.898, 
+                42.614
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "albany_new-york", 
+          "name": "Albany"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -85.386, 
+                32.844
+              ], 
+              [
+                -85.386, 
+                34.618
+              ], 
+              [
+                -83.269, 
+                34.618
+              ], 
+              [
+                -83.269, 
+                32.844
+              ], 
+              [
+                -85.386, 
+                32.844
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "atlanta_georgia", 
+          "name": "Atlanta"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -98.212, 
+                29.931
+              ], 
+              [
+                -98.212, 
+                30.67
+              ], 
+              [
+                -97.234, 
+                30.67
+              ], 
+              [
+                -97.234, 
+                29.931
+              ], 
+              [
+                -98.212, 
+                29.931
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "austin_texas", 
+          "name": "Austin"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -71.191, 
+                42.228
+              ], 
+              [
+                -71.191, 
+                42.42
+              ], 
+              [
+                -70.923, 
+                42.42
+              ], 
+              [
+                -70.923, 
+                42.228
+              ], 
+              [
+                -71.191, 
+                42.228
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "boston_massachusetts", 
+          "name": "Boston"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -74.057, 
+                40.551
+              ], 
+              [
+                -74.057, 
+                40.739
+              ], 
+              [
+                -73.833, 
+                40.739
+              ], 
+              [
+                -73.833, 
+                40.551
+              ], 
+              [
+                -74.057, 
+                40.551
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "brooklyn_new-york", 
+          "name": "Brooklyn"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -114.612, 
+                50.71
+              ], 
+              [
+                -114.612, 
+                51.353
+              ], 
+              [
+                -113.478, 
+                51.353
+              ], 
+              [
+                -113.478, 
+                50.71
+              ], 
+              [
+                -114.612, 
+                50.71
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "calgary_canada", 
+          "name": "Calgary"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -88.505, 
+                41.339
+              ], 
+              [
+                -88.505, 
+                42.297
+              ], 
+              [
+                -87.066, 
+                42.297
+              ], 
+              [
+                -87.066, 
+                41.339
+              ], 
+              [
+                -88.505, 
+                41.339
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "chicago_illinois", 
+          "name": "Chicago"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -82.485, 
+                40.73
+              ], 
+              [
+                -82.485, 
+                41.918
+              ], 
+              [
+                -80.798, 
+                41.918
+              ], 
+              [
+                -80.798, 
+                40.73
+              ], 
+              [
+                -82.485, 
+                40.73
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "cleveland_ohio", 
+          "name": "Cleveland"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -97.789, 
+                32.166
+              ], 
+              [
+                -97.789, 
+                33.431
+              ], 
+              [
+                -96.113, 
+                33.431
+              ], 
+              [
+                -96.113, 
+                32.166
+              ], 
+              [
+                -97.789, 
+                32.166
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "dallas_texas", 
+          "name": "Dallas"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -77.599, 
+                38.539
+              ], 
+              [
+                -77.599, 
+                39.631
+              ], 
+              [
+                -76.058, 
+                39.631
+              ], 
+              [
+                -76.058, 
+                38.539
+              ], 
+              [
+                -77.599, 
+                38.539
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "dc-baltimore_maryland", 
+          "name": "DC/Baltimore"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -105.746, 
+                39.323
+              ], 
+              [
+                -105.746, 
+                40.313
+              ], 
+              [
+                -104.334, 
+                40.313
+              ], 
+              [
+                -104.334, 
+                39.323
+              ], 
+              [
+                -105.746, 
+                39.323
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "denver-boulder_colorado", 
+          "name": "Denver/Boulder"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -84.158, 
+                41.723
+              ], 
+              [
+                -84.158, 
+                43.168
+              ], 
+              [
+                -82.375, 
+                43.168
+              ], 
+              [
+                -82.375, 
+                41.723
+              ], 
+              [
+                -84.158, 
+                41.723
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "detroit_michigan", 
+          "name": "Detroit"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -114.529, 
+                52.941
+              ], 
+              [
+                -114.529, 
+                54.213
+              ], 
+              [
+                -112.43, 
+                54.213
+              ], 
+              [
+                -112.43, 
+                52.941
+              ], 
+              [
+                -114.529, 
+                52.941
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "edmonton_canada", 
+          "name": "Edmonton"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -76.663, 
+                36.718
+              ], 
+              [
+                -76.663, 
+                37.208
+              ], 
+              [
+                -75.918, 
+                37.208
+              ], 
+              [
+                -75.918, 
+                36.718
+              ], 
+              [
+                -76.663, 
+                36.718
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "hampton-roads_virginia", 
+          "name": "Hampton Roads"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -158.35, 
+                21.192
+              ], 
+              [
+                -158.35, 
+                21.781
+              ], 
+              [
+                -157.592, 
+                21.781
+              ], 
+              [
+                -157.592, 
+                21.192
+              ], 
+              [
+                -158.35, 
+                21.192
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "honolulu_hawaii", 
+          "name": "Honolulu"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -96.064, 
+                28.856
+              ], 
+              [
+                -96.064, 
+                30.261
+              ], 
+              [
+                -94.378, 
+                30.261
+              ], 
+              [
+                -94.378, 
+                28.856
+              ], 
+              [
+                -96.064, 
+                28.856
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "houston_texas", 
+          "name": "Houston"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -95.946, 
+                38.599
+              ], 
+              [
+                -95.946, 
+                39.419
+              ], 
+              [
+                -94.048, 
+                39.419
+              ], 
+              [
+                -94.048, 
+                38.599
+              ], 
+              [
+                -95.946, 
+                38.599
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "kansas-city-lawrence-topeka_kansas", 
+          "name": "Kansas City/Lawrence/Topeka"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -82.462, 
+                23.032
+              ], 
+              [
+                -82.462, 
+                23.184
+              ], 
+              [
+                -82.278, 
+                23.184
+              ], 
+              [
+                -82.278, 
+                23.032
+              ], 
+              [
+                -82.462, 
+                23.032
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "la-habana_cuba", 
+          "name": "La Habana"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -115.581, 
+                35.757
+              ], 
+              [
+                -115.581, 
+                36.615
+              ], 
+              [
+                -114.211, 
+                36.615
+              ], 
+              [
+                -114.211, 
+                35.757
+              ], 
+              [
+                -115.581, 
+                35.757
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "las-vegas_nevada", 
+          "name": "Las Vegas"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -119.437, 
+                33.298
+              ], 
+              [
+                -119.437, 
+                34.583
+              ], 
+              [
+                -116.724, 
+                34.583
+              ], 
+              [
+                -116.724, 
+                33.298
+              ], 
+              [
+                -119.437, 
+                33.298
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "los-angeles_california", 
+          "name": "Los Angeles"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -99.597, 
+                18.992
+              ], 
+              [
+                -99.597, 
+                19.921
+              ], 
+              [
+                -98.606, 
+                19.921
+              ], 
+              [
+                -98.606, 
+                18.992
+              ], 
+              [
+                -99.597, 
+                18.992
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "mexico-city_mexico", 
+          "name": "Mexico City"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -80.683, 
+                25.291
+              ], 
+              [
+                -80.683, 
+                26.912
+              ], 
+              [
+                -79.774, 
+                26.912
+              ], 
+              [
+                -79.774, 
+                25.291
+              ], 
+              [
+                -80.683, 
+                25.291
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "miami_florida", 
+          "name": "Miami"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -94.013, 
+                44.471
+              ], 
+              [
+                -94.013, 
+                45.415
+              ], 
+              [
+                -92.543, 
+                45.415
+              ], 
+              [
+                -92.543, 
+                44.471
+              ], 
+              [
+                -94.013, 
+                44.471
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "minneapolis-saint-paul_minnesota", 
+          "name": "Minneapolis/Saint Paul"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -74.734, 
+                44.968
+              ], 
+              [
+                -74.734, 
+                46.057
+              ], 
+              [
+                -72.723, 
+                46.057
+              ], 
+              [
+                -72.723, 
+                44.968
+              ], 
+              [
+                -74.734, 
+                44.968
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "montreal_canada", 
+          "name": "Montreal"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -87.743, 
+                35.408
+              ], 
+              [
+                -87.743, 
+                36.652
+              ], 
+              [
+                -85.778, 
+                36.652
+              ], 
+              [
+                -85.778, 
+                35.408
+              ], 
+              [
+                -87.743, 
+                35.408
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "nashville_tennessee", 
+          "name": "Nashville"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -90.653, 
+                28.887
+              ], 
+              [
+                -90.653, 
+                30.51
+              ], 
+              [
+                -89.11, 
+                30.51
+              ], 
+              [
+                -89.11, 
+                28.887
+              ], 
+              [
+                -90.653, 
+                28.887
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "new-orleans_louisiana", 
+          "name": "New Orleans"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -74.501, 
+                40.345
+              ], 
+              [
+                -74.501, 
+                41.097
+              ], 
+              [
+                -73.226, 
+                41.097
+              ], 
+              [
+                -73.226, 
+                40.345
+              ], 
+              [
+                -74.501, 
+                40.345
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "new-york_new-york", 
+          "name": "New York"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -76.361, 
+                44.927
+              ], 
+              [
+                -76.361, 
+                45.598
+              ], 
+              [
+                -75.052, 
+                45.598
+              ], 
+              [
+                -75.052, 
+                44.927
+              ], 
+              [
+                -76.361, 
+                44.927
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "ottawa_canada", 
+          "name": "Ottawa"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -75.572, 
+                39.641
+              ], 
+              [
+                -75.572, 
+                40.308
+              ], 
+              [
+                -74.641, 
+                40.308
+              ], 
+              [
+                -74.641, 
+                39.641
+              ], 
+              [
+                -75.572, 
+                39.641
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "philadelphia_pennsylvania", 
+          "name": "Philadelphia"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -112.821, 
+                32.796
+              ], 
+              [
+                -112.821, 
+                34.07
+              ], 
+              [
+                -111.211, 
+                34.07
+              ], 
+              [
+                -111.211, 
+                32.796
+              ], 
+              [
+                -112.821, 
+                32.796
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "phoenix_arizona", 
+          "name": "Phoenix"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -80.711, 
+                40.023
+              ], 
+              [
+                -80.711, 
+                40.88
+              ], 
+              [
+                -79.249, 
+                40.88
+              ], 
+              [
+                -79.249, 
+                40.023
+              ], 
+              [
+                -80.711, 
+                40.023
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "pittsburgh_pennsylvania", 
+          "name": "Pittsburgh"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -72.518, 
+                18.456
+              ], 
+              [
+                -72.518, 
+                18.683
+              ], 
+              [
+                -72.112, 
+                18.683
+              ], 
+              [
+                -72.112, 
+                18.456
+              ], 
+              [
+                -72.518, 
+                18.456
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "port-au-prince_haiti", 
+          "name": "Port au Prince"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -123.521, 
+                45.096
+              ], 
+              [
+                -123.521, 
+                45.897
+              ], 
+              [
+                -122.11, 
+                45.897
+              ], 
+              [
+                -122.11, 
+                45.096
+              ], 
+              [
+                -123.521, 
+                45.096
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "portland_oregon", 
+          "name": "Portland"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -79.26446190712878,
+                35.51924621969106
+              ],
+              [
+                -78.254921645725,
+                35.51924621969106
+              ],
+              [
+                -78.254921645725,
+                36.243823619688065
+              ],
+              [
+                -79.26446190712878,
+                36.243823619688065
+              ],
+              [
+                -79.26446190712878,
+                35.51924621969106
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "raleigh_north-carolina", 
+          "name": "Raleigh"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -91.01, 
+                38.069
+              ], 
+              [
+                -91.01, 
+                39.151
+              ], 
+              [
+                -89.533, 
+                39.151
+              ], 
+              [
+                -89.533, 
+                38.069
+              ], 
+              [
+                -91.01, 
+                38.069
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "saint-louis_missouri", 
+          "name": "Saint Louis"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -98.951, 
+                29.109
+              ], 
+              [
+                -98.951, 
+                29.951
+              ], 
+              [
+                -97.88, 
+                29.951
+              ], 
+              [
+                -97.88, 
+                29.109
+              ], 
+              [
+                -98.951, 
+                29.109
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "san-antonio_texas", 
+          "name": "San Antonio"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -117.376, 
+                32.312
+              ], 
+              [
+                -117.376, 
+                33.078
+              ], 
+              [
+                -116.588, 
+                33.078
+              ], 
+              [
+                -116.588, 
+                32.312
+              ], 
+              [
+                -117.376, 
+                32.312
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "san-diego-tijuana_mexico", 
+          "name": "San Diego/Tijuana"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -117.288, 
+                32.558
+              ], 
+              [
+                -117.288, 
+                32.91
+              ], 
+              [
+                -116.918, 
+                32.91
+              ], 
+              [
+                -116.918, 
+                32.558
+              ], 
+              [
+                -117.288, 
+                32.558
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "san-diego_california", 
+          "name": "San Diego"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -123.64, 
+                36.791
+              ], 
+              [
+                -123.64, 
+                38.719
+              ], 
+              [
+                -121.025, 
+                38.719
+              ], 
+              [
+                -121.025, 
+                36.791
+              ], 
+              [
+                -123.64, 
+                36.791
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "san-francisco-bay_california", 
+          "name": "San Francisco Bay"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -122.737, 
+                37.449
+              ], 
+              [
+                -122.737, 
+                37.955
+              ], 
+              [
+                -122.011, 
+                37.955
+              ], 
+              [
+                -122.011, 
+                37.449
+              ], 
+              [
+                -122.737, 
+                37.449
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "san-francisco_california", 
+          "name": "San Francisco"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -122.046, 
+                37.125
+              ], 
+              [
+                -122.046, 
+                37.469
+              ], 
+              [
+                -121.589, 
+                37.469
+              ], 
+              [
+                -121.589, 
+                37.125
+              ], 
+              [
+                -122.046, 
+                37.125
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "san-jose_california", 
+          "name": "San Jose"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -123.931, 
+                46.608
+              ], 
+              [
+                -123.931, 
+                48.528
+              ], 
+              [
+                -121.335, 
+                48.528
+              ], 
+              [
+                -121.335, 
+                46.608
+              ], 
+              [
+                -123.931, 
+                46.608
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "seattle_washington", 
+          "name": "Seattle"
+        }, 
+        "type": "Feature"
+      }, 
+      {
+        "geometry": {
+          "coordinates": [
+            [
+              [
+                -82.935, 
+                27.279
+              ], 
+              [
+                -82.935, 
+                28.376
+              ], 
+              [
+                -82.012, 
+                28.376
+              ], 
+              [
+                -82.012, 
+                27.279
+              ], 
+              [
+                -82.935, 
+                27.279
+              ]
+            ]
+          ], 
+          "type": "Polygon"
+        }, 
+        "properties": {
+          "id": "tampa_florida", 
+          "name": "Tampa"
+        }, 
+        "type": "Feature"
+      },
+              {
+      "geometry": {
+        "coordinates": [
+                    [
+                        [
+                            -86.01,
+                            38.06
+                        ],
+                        [
+                            -85.41,
+                            38.06
+                        ],
+                        [
+                            -85.41,
+                            38.38
+                        ],
+                        [
+                            -86.01,
+                            38.38
+                        ],
+                        [
+                            -86.01,
+                            38.06
+                        ]
+                    ]
+        ],
+        "type": "Polygon"
+      },
+      "properties": {
+        "id": "louisville_kentucky",
+        "name": "Louisville"
+      },
+      "type": "Feature"
+    }
+    ],
+    "type": "FeatureCollection"
+  }
