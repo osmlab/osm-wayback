@@ -5,7 +5,6 @@ majorVersion vs. minorVersion
 -----------------------------
 Whenever an OSM object is edited, the version number is incremented. This number keeps a record of how many times the attributes of an object have been changed. This number does not, however, count geometry-only changes. Since individual nodes have no reference to any ways that may contain them,
 
-
 Nodes
 -----
 OSM-Wayback stores locations with nodes themselves so retrieving their geometries is afforded through `add_history`. To create valid geometries (or TopoJSON), you can feed this output directly into `node index.js`. For ways, you must run `add_geometry` first to build the `nodeLocations` object.

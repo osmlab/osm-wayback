@@ -45,7 +45,7 @@ module.exports = function(osmObject, CONFIG){
       validUntil = false;
 
       var geometry;
-      
+
       // //If there's another version to come, set validUntil to the next version
       if(i < that.versions.length-1){
         validUntil = that.versions[i+1].t
