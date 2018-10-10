@@ -61,7 +61,7 @@ This will create the following files in the `example` directory (in the followin
 | **albany\_historical\_geometries_<br>topojson.geojsonseq** | Each feature from `albany.history.geometries` with a TopoJSON encoded `@history` attribute that describes each historical version (including minor versions) with geometries|
 | **`albany_historical.mbtiles`** | Historical vector tiles rendered at zoom 15 for albany! |
 
-_Note that once run, each of these files are standalone and can be deleted in the order they are generated. (Each file is used only as the input to the next function. This workflow is a function of each utility here being standalone to provide options: You could build a North-America INDEX and then run new_york.geojsonseq against it at the same time as running san_francisco.geojsonseq. Including geometries requires a second pass once histories are looked up. This is not done in one pass (and time costs are negligible) to allow only tag-history analysis)_
+_Note that once run, each of these files are standalone and can be deleted in the order they are generated. Each file is used only as the input to the next function. This workflow is the result of each utility here relyong on standalone input. For example, you could build a North-America INDEX and then lookup history for just new\_york.geojsonseq. Looking up node locations will always require a second pass after histories are built. Separating these files and steps adds negligible time cost and allows tag-only history analysis._
 
 
 #### The complete workflow
