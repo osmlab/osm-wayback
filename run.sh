@@ -8,7 +8,7 @@ echo ""
 echo "Preparation Step 1: osmium time-filter"
 mason_packages/.link/bin/osmium time-filter --overwrite -o $2.osm.pbf $1
 echo "Preparation Step 2: osmium export"
-mason_packages/.link/bin/osmium export -c ~/osm-qa-tiles/osm-qa-tile.osmiumconfig -f geojsonseq $2.osm.pbf > $2.geojsonseq
+mason_packages/.link/bin/osmium export --verbose -c ~/osm-qa-tiles/osm-qa-tile.osmiumconfig -f geojsonseq $2.osm.pbf > $2.geojsonseq
 
 echo ""
 echo "Now beginning OSM-Wayback"
@@ -44,8 +44,8 @@ echo "======================================================="
 echo "|| Step 4: Create TopoJSON Histories from Geometries ||"
 echo "======================================================="
 echo ""
-echo "* cat $2.history.geometries | node geometry-prototyping/index.js > $2_historical_geometries_topojson.geojsonseq"
-time cat $2.history.geometries | node geometry-prototyping/index.js > $2_historical_geometries_topojson.geojsonseq
+echo "* node geometry-reconstruction/index.js $2.history.geometries > $2_historical_geometries_topojson.geojsonseq"
+time node geometry-reconstruction/index.js $2.history.geometries > $2_historical_geometries_topojson.geojsonseq
 
 echo ""
 echo "==============================================="
