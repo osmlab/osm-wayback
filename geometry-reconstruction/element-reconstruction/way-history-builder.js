@@ -249,7 +249,7 @@ this.buildAllPossibleVersionGeometries = function(args){
             if (j<1){
               baseGeom.push(versions[i][j])
               newPossibilities.push(baseGeom)
-            }else if (baseGeom.length < 5){
+            }else if (baseGeom.length < 7){
               //If the size of the geometry isn't insane
               baseGeom.push(versions[i][j])
               newPossibilities.push(baseGeom)
