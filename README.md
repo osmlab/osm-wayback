@@ -17,90 +17,83 @@ osm-wayback is currently designed to support large(ish)-scale historical analysi
 
 Install mason to manage dependencies
 
-```
-git submodule init
-git submodule update
 
-.mason/mason install osmium 1.9.1
-.mason/mason link osmium 1.9.1
-
-.mason/mason install tippecanoe 1.31.0
-.mason/mason link tippecanoe 1.31.0
-```
-
+	git submodule init
+	git submodule update
+	
 Then build with `cmake`:
-```
-mkdir build
-cd build
-cmake ..
-make
-```
 
-## Run
+	mkdir build
+	cd build
+	cmake ..
+	make
+	
+To use the `run.sh` script, also run the following:
+
+	.mason/mason install osmium 1.9.1
+	.mason/mason link osmium 1.9.1
+	
+	.mason/mason install tippecanoe 1.31.0
+	.mason/mason link tippecanoe 1.31.0
+	
+	cd geometry-reconstruction
+	npm install
+
+
+## Running
+
+#### A canned workflow: `run.sh`
+The `run.sh` script automates all of the steps to turn OSM history files into historical vector tiles with only 2 inputs: `OSM_HISTORY_FILE` and `ROOT_FOR_OUTPUT`.
+	
+For example, to run generate historical vector tiles from the albany example file included in `example/history_of_albandy.osh.pbf`: 
+	
+	$ ./run.sh example/history_of_albany.osh.pbf example/albany
+
+This will create the following files in the `example` directory (in the following order): 
+
+| File | Description|
+|------------------------------|------------------------------|
+| **albany.osm.pbf** | Latest version of (all) objects in `history_of_albany.osh.pbf`|
+| **albany.geojsonseq** | GeoJSON sequence of objects exported by _osmium export_ with the `example/osmiumconfig` configuration. _(Not ALL OSM objects, only what osmium understands)_| 
+| **albany_INDEX** | The RocksDB Index of `history_of_albany.osh.pbf` |
+| **albany.history**| Each OSM object from `albany.geojsonseq` with an additional `@history` property that contains each previous (major) version (see [`HISTORICAL_SCHEMA.md`](https://github.com/osmlab/osm-wayback/blob/master/HISTORICAL_SCHEMA.md) for more on this schema) | 
+| **albany.history.geometries** | Each feature from `albany.history` enriched with an additional `nodeLocations` attribute storing the location of every version of every node ever associated with each object.  |
+| **albany\_historical\_geometries_<br>topojson.geojsonseq** | Each feature from `albany.history.geometries` with a TopoJSON encoded `@history` attribute that describes each historical version (including minor versions) with geometries|
+| **`albany_historical.mbtiles`** | Historical vector tiles rendered at zoom 15 for albany! |
+
+_Note that once run, each of these files are standalone and can be deleted in the order they are generated. (Each file is used only as the input to the next function)_
+
+
+#### The complete workflow
 
 First build up a historic lookup index.
 **Note:** For large files (Country / Planet), increase `ulimit` so that RocksDB can have many files open at once (>4000 for the full planet history file).
 
-```
-build_lookup_index INDEX_DIR OSM_HISTORY_FILE
-```
+	build_lookup_index INDEX_DIR OSM_HISTORY_FILE
 
 Second, pass a stream of GeoJSON features as produced by [osmium-export](http://docs.osmcode.org/osmium/latest/osmium-export.html) to the `add_history` function
 
-```
-cat features.geojsonseq | add_history INDEX_DIR
-```
 
-The output is a stream of augmented GeoJSON features with an additional `@history` array of the following schema.
+	cat features.geojsonseq | add_history INDEX_DIR
 
+The output is a stream of augmented GeoJSON features with an additional `@history` array (see [HISTORICAL_SCHEMA.md](https://github.com/osmlab/osm-wayback/blob/master/HISTORICAL_SCHEMA.md)) for more on the schema of `@history`. Note: If a feature is not in the input file, it's history will not be in the output file.
 
-## Performance
-This program essentially converts an OSM history file into a RocksDB Key-Value store for _very fast_ lookups. As such, it requires a lot of disk space, but not much memory. A few statistics are below to help gauge the amount of disk space required.
-
-In general, RocksDB indexes will be 10-15x the size of the input history file. Full planet indexes can be near 1TB.
-
-
-Timewise, here are some rough estimates, these were run  locally on a 2013 Macbook Air, i7.
-
-`build_lookup_index`
-
-| .osh.pbf file | Nodes | INDEX   | ~ Time (seconds)|
-|---------------|-------|---------|-----------------|
-| ~ 7 MB        | 0.5M  | ~ 50 MB |  1           |
-| ~ 50 MB       | 5M    | ~ 650 MB|  13
-| ~ 280 MB      | 30M   | ~ 3.5 GB|  70          |
-
-
-<hr>
-`add_history`
-
-| GeoJSON Features | Additional history<br>versions added| Time (seconds)|
-|------------------|---------------------|---------------|
-| 56k              | 95k                 | 4             |
-| 820k             | 973k                | 57            |
-
-_Estimate ~ 1M input features per minute?_
-
-(For reference, there are about ~600M GeoJSON features in the daily planet file).
 
 ## Historic Geometries
 A fourth column family storing node locations can be created during `build_lookup_index`, depending on the value of the variable, `LOC` in `build_lookup_index.cpp`.
 
-If the node location column family exists, the <HISTORY GEOJSONSEQ> may be passed to `add_geometry`. This function looks up every version of every node in each historical version of the object. It adds `nodeLocations` as a top-level dictionary, keyed by `node ID` and then `changeset ID` for each node.
+If the node location column family exists, the `HISTORY GEOJSONSEQ` may be passed to `add_geometry`. This function looks up every version of every node in each historical version of the object. It adds `nodeLocations` as a top-level dictionary, keyed by `node ID` and then `changeset ID` for each node.
 
-```
-cat <HISTORY GEOJSONSEQ> | add_geometry <ROCKSDB> > <HISTORY GEOJSONSEQ with Node Locations>
-```
+	cat <HISTORY GEOJSONSEQ> | add_geometry <ROCKSDB> 
+	
+Will create a line-delimited stream of GeoJSON OSM objects with the `nodeLocations` attribute.
 
-From here, this stream is passed into `geometry-prototyping/index.js` to reconstruct major and minor geometry versions for every object. This can be done in one step with the following command:
+Reconstructing historical geometries (available for nodes & ways) is then done in a separate process in `geometry-reconstruction`:
 
-```
-cat <HISTORY GEOJSONSEQ> | ../build/add_geometry <ROCKSDB> | node index.js > <HISTORY GEOJSONSEQ with Geometry>
-```
+	node geometry-reconstruction/index.js <HISTORY GEOJSONSEQ with Node Locations>  
+	
+Currently, multiple output types are supported, see [`geometry-reconstruction/README.md`](https://github.com/osmlab/osm-wayback/blob/master/geometry-reconstruction/README.md) for more information about the following output types:
 
-See [geometry-prototyping/README.md](geometry-prototyping/README.md) for more information on which options are available and the description fo the schema in [HISTORICAL_SCHEMA_V1.md](HISTORICAL_SCHEMA_V1.md) for the pros and cons of each schema.
-
-Currently, 3 output types are supported:
 1. Every major and minor version are independent objects (Best for rendering historical geometries)
 2. Entries in the `@history` object include `geometry` attribute (Best for historical analysis)
 3. The `@history` object is a TopoJSON object, storing every version of the object. (More efficient than 2.)

@@ -1,3 +1,4 @@
+.DS_Store
 # Prerequisites
 *.d
 mason_packages/
@@ -48,4 +49,4 @@ nepal.osh.pbf
 
 *.mbtiles
 
-geometry-prototyping/node_modules/
+geometry-reconstruction/node_modules/
