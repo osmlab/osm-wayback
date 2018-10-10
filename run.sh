@@ -8,7 +8,7 @@ echo ""
 echo "Preparation Step 1: osmium time-filter"
 mason_packages/.link/bin/osmium time-filter --overwrite -o $2.osm.pbf $1
 echo "Preparation Step 2: osmium export"
-mason_packages/.link/bin/osmium export --verbose -c ~/osm-qa-tiles/osm-qa-tile.osmiumconfig -f geojsonseq $2.osm.pbf > $2.geojsonseq
+mason_packages/.link/bin/osmium export --verbose -c example/osmiumconfig -f geojsonseq $2.osm.pbf > $2.geojsonseq
 
 echo ""
 echo "Now beginning OSM-Wayback"
