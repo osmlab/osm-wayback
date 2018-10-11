@@ -28,7 +28,7 @@ if (process.argv.length > 2){
 streamReduce({
   map: path.join(__dirname, 'map-geom-reconstruction.js'),
   file: (file)? file : path.join(__dirname, 'test/tampa-test.history.geometries.head100'),
-  // maxWorkers:2,
+  maxWorkers:1,
 })
 .on('reduce', function(res) {
   if(res.lineProcessed)                 status.linesProcessed                ++

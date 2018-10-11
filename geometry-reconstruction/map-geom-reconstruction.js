@@ -66,6 +66,8 @@ module.exports = function(line, writeData, done) {
   try{
     var object = JSON.parse(line.toString());
 
+    console.warn(object.properties['@id'], object.properties['@version']+"\n")
+
     // All objects should have a `@history` property when they get to this stage
     if (object.properties.hasOwnProperty('@history')){
 
@@ -198,7 +200,7 @@ module.exports = function(line, writeData, done) {
 
             if (CONFIG.WRITE_EVERY_GEOMETRY){
               string = JSON.stringify(thisVersion)
-              allGeometriesByteSize += string.length;
+              status.allGeometriesByteSize += string.length;
               writeData(string+"\n")
             }
 
@@ -272,7 +274,6 @@ module.exports = function(line, writeData, done) {
     status.jsonParsingError = true
     console.warn(err)
   }
-
 
   done(null, status);
 }

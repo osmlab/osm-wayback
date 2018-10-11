@@ -1,8 +1,11 @@
 var _ = require('lodash');
 
-const MINOR_VERSION_SECOND_THRESHOLD = 60*15; //15 minutes
+const MINOR_VERSION_SECOND_THRESHOLD    = 60*1;  // 1 minute
+
+const MINOR_CHANGESET_VERSION_THRESHOLD = 60*1; // 1 minute
+
 const CHANGESET_THRESHOLD            = 60*1   // 1 minute
-const DEBUG = 0;
+const DEBUG = 1;
 
 module.exports = function(osmObject){
 
@@ -169,11 +172,14 @@ this.buildAllPossibleVersionGeometries = function(args){
   var validSince = args.validSince;
   var changeset  = args.changeset;
 
+  var versionLifespan = validUntil - validSince
+
   var that = this;
 
   if (DEBUG){
     console.warn(`  Building all possible geometries between ${validSince} - ${validUntil}`)
     console.warn(`  (${(new Date(validSince*1000)).toISOString()} - ${(new Date(validUntil*1000)).toISOString()})`)
+    console.warn(`  (Lifespan of major version: ${ (versionLifespan / 3600).toString() } hours`)
   }
 
   var versions  = []
@@ -198,130 +204,135 @@ this.buildAllPossibleVersionGeometries = function(args){
     }
   })
 
-  if(DEBUG){
-    for(var i in versions){
-      console.warn("--" + args.nodeRefs[i] + "---");
-      versions[i].forEach(function(v_){
-        console.warn(v_.i, v_.c, v_.t, v_.h)
-      })
-    }
-  }
+  // if(DEBUG){
+  //   for(var i in versions){
+  //     console.warn("--" + args.nodeRefs[i] + "---");
+  //     versions[i].forEach(function(v_){
+  //       console.warn(v_.i, v_.c, v_.t, v_.h)
+  //     })
+  //   }
+  // }
 
   //Take the first version
   var majorVersion = versions.map(function(a){return a[0]})
 
   if(DEBUG){
-    console.warn("MAJOR VERSION: ")
+    console.warn("\nMAJOR VERSION: ")
     console.warn((new Date(_.max(majorVersion.map(function(n){return n.t}))*1000)).toISOString());
-    console.warn(majorVersion.map(function(n){return n.h}).join(" > "))
+    console.warn("Length of major version: " + majorVersion.length)
+    console.warn(majorVersion.slice(0,5).map(function(n){return n.h}).join(" > ")+"....")
   }
   var minorVersions;
 
   //Expand out the versions array
   var maxLen = _.max(versions.map(function(a){return a.length}))
 
-  if(DEBUG){console.warn("\n" + maxLen + "\n")}
-
-  if(maxLen>1){         //There are minor versions!
+  if(maxLen>1){                      //There could be minor versions!
     minorVersions = [[]];
-
-    //Iterate through each of the nodes, building geometries as they exist.
-    for(var i=0; i<versions.length; i++){
-      //If there is only 1 node, add it to ALL of the minorVersions;
-      if(versions[i].length==1 ){
-        for(var j=0; j<minorVersions.length; j++){
-          minorVersions[j].push(versions[i][0])
-        }
-      }else{
-
-        //minorVersions is going to grow with all permutations...
-        var newPossibilities = [];
-
-        //For each of the CURRENT minorVersions, add one of the new ones (within reason).
-        for(var k=0; k<minorVersions.length; k++){
-
-          // var lastTime = versions[i][0].t
-          for(var j=0; j<versions[i].length; j++){
-            //Reset baseGeom;
-            var baseGeom = minorVersions[k].slice(0);
-
-            //Always do it for the first version
-            if (j<1){
-              baseGeom.push(versions[i][j])
-              newPossibilities.push(baseGeom)
-            }else if (baseGeom.length < 7){
-              //If the size of the geometry isn't insane
-              baseGeom.push(versions[i][j])
-              newPossibilities.push(baseGeom)
-
-            }else if (k==minorVersions.length-1 && j==versions[i].length-1){
-              //Just asdd the last one
-              baseGeom.push(versions[i][j])
-              newPossibilities.push(baseGeom)
-            }
-          }
-        }
-        //Now reset minorVersions to be newPossibilities;
-        minorVersions = newPossibilities;
-      }
-    }
-
-    //OKAY! NOW! How many are valid?
-    mapped = []
-    minorVersions.forEach(function(mV){
-      var maxNode = mV[0];
-      for(idx in mV){
-        if (mV[idx].t > maxNode.t){
-          maxNode = mV[idx]
-        }
-      }
-      mapped.push([maxNode, mV])
-    })
-
-    minorVersions = undefined;
-
-    sortedMinorVersions = _.sortBy(mapped, function(x){return x[0].t})
+    minorVersionsTry2 = [[]];
 
     if(DEBUG){
-      console.warn("Minor Versions: ")
+      console.warn("\nMinimum Possible Minor Versions: " + (maxLen-1) + "\n")
     }
 
-    var countableMinorVersions = [];
-    var prevTimestamp = sortedMinorVersions[0][0].t;
-    var minorVersionIdx = 1;
-    sortedMinorVersions.forEach(function(sorted){
-      var mV = sorted[1]
-      // console.warn("PREV TIMESTAMP: " + (new Date(prevTimestamp*1000)).toISOString())
-      if (sorted[0].t > prevTimestamp + MINOR_VERSION_SECOND_THRESHOLD){
-        if(DEBUG){
-          console.warn(mV.map(function(n){return n.h}).join(" > "))
-          console.warn(sorted[0].h, (new Date(sorted[0].t*1000)).toISOString())
-          console.warn()
+    //Step 1: Identify all possible changesets and their possible time ranges:
+    var minorChangesets = {}
+
+    versions.map( (v) => {
+      v.map( (u) => {
+        if (minorChangesets.hasOwnProperty(u.c)) {
+          if (u.t > minorChangesets[u.c].max){
+            minorChangesets[u.c].max = u.t
+          }
+          if (u.t < minorChangesets[u.c].min){
+            minorChangesets[u.c].min = u.t
+          }
+        }else{
+          minorChangesets[u.c] = {min:u.t, max:u.t, u:u.u, h:u.h, nodes:[]}
         }
-        countableMinorVersions.push({
-          minorVersion: minorVersionIdx,
-          changeset: sorted[0].c,
-          validSince: sorted[0].t,
-          user:       sorted[0].h,
-          uid:        sorted[0].u,
-          coordinates:mV.map(function(p){return p.p})
-        })
-        minorVersionIdx++;
-      }
-      /* else{
-        if(DEBUG){
-          console.warn("SKIPPED: ")
-          console.warn(mV.map(function(n){return n.h}).join(" > "))
-          console.warn(sorted[0].h, (new Date(sorted[0].t*1000)).toISOString())
-        }
-      } */
-      prevTimestamp = sorted[0].t;
+      })
     })
+
+    //Check that the minor changesets are valid based on timing?
+    //We only care about changesets that could have happened after the major version
+    var deleteMe = [changeset] //The changeset that made the minor version doesn't count...
+    var prevKey, prevTime
+    _.sortBy(Object.keys(minorChangesets).map(Number)).forEach(function(cKey){
+      //If the changeset was closed before this majorVersion, it won't cause a minor Version
+      if (minorChangesets[cKey].max < validSince){
+        deleteMe.push(cKey)
+      }
+
+      //If this changeset was closed within threshold time of the previous one, mark previous for deletion
+      if (prevTime){
+        if (minorChangesets[cKey].max - MINOR_CHANGESET_VERSION_THRESHOLD < prevTime){
+          console.warn(JSON.stringify( minorChangesets[cKey] ) + " " + prevTime)
+          deleteMe.push(cKey)
+        }
+      }
+
+      prevKey  = cKey
+      prevTime = minorChangesets[cKey].max
+    });
+
+    deleteMe.forEach(function(cKey){
+      delete minorChangesets[cKey]
+    })
+
+
+    _.sortBy(Object.keys(minorChangesets).map(Number)).forEach(function(cKey){
+      //Iterate through the minor changeset;
+      for(var i=0; i<versions.length; i++){
+
+        //If there's only one version of the node, use it.
+        if(versions[i].length==1 ){
+          minorChangesets[cKey].nodes.push(versions[i][0])
+
+        //Check for the changeset?
+        }else if (versions[i].map((v)=>v.c).indexOf(cKey)>-1){
+          minorChangesets[cKey].nodes.push( versions[i].filter((v)=>v.c==cKey)[0])
+
+        //No matching changeset, so find the best contender.
+        }else{
+
+          var nodeVersions = _.sortBy(versions[i],(v)=>v.t)
+          var prevNode = nodeVersions[0]
+          for(var j=1; j<nodeVersions.length; j++){
+            if(nodeVersions[j].t > minorChangesets[cKey].max){
+              //This node is too new for this changeset, break out and push prevNode
+              break
+            }else{
+              prevNode = nodeVersions[j] //this node is still alive
+            }
+          }
+          minorChangesets[cKey].nodes.push(prevNode)
+        }
+      }
+    });
+
+    var countableMinorVersionsTry2 = [];
+    var minorVersionIdx = 1;
+    _.sortBy(Object.keys(minorChangesets).map(Number)).forEach(function(c){
+
+      var obj = minorChangesets[c]
+      console.warn(`Changeset: ${c} |min: ${obj.min} max: ${obj.max} | nodes: ${obj.nodes.length} | ${obj.u}, ${obj.h}`)
+
+      countableMinorVersionsTry2.push({
+        minorVersion: minorVersionIdx,
+        changeset:  obj.c,
+        validSince: obj.max,
+        user:       obj.h,
+        uid:        obj.u,
+        coordinates:obj.nodes.map(function(p){return p.p})
+      })
+      minorVersionIdx++;
+    });
+
   }
 
   return {
     majorVersion: majorVersion.map(function(g){return g.p}),
-    minorVersions: countableMinorVersions
+    minorVersions: countableMinorVersionsTry2
   }
 }
 
