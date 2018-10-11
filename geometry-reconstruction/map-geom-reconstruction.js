@@ -66,7 +66,7 @@ module.exports = function(line, writeData, done) {
   try{
     var object = JSON.parse(line.toString());
 
-    console.warn(object.properties['@id'], object.properties['@version']+"\n")
+    // console.warn(object.properties['@id'], object.properties['@version']+"\n")
 
     // All objects should have a `@history` property when they get to this stage
     if (object.properties.hasOwnProperty('@history')){

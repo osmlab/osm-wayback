@@ -5,7 +5,7 @@ const MINOR_VERSION_SECOND_THRESHOLD    = 60*1;  // 1 minute
 const MINOR_CHANGESET_VERSION_THRESHOLD = 60*1; // 1 minute
 
 const CHANGESET_THRESHOLD            = 60*1   // 1 minute
-const DEBUG = 1;
+const DEBUG = 0;
 
 module.exports = function(osmObject){
 
@@ -266,7 +266,7 @@ this.buildAllPossibleVersionGeometries = function(args){
       //If this changeset was closed within threshold time of the previous one, mark previous for deletion
       if (prevTime){
         if (minorChangesets[cKey].max - MINOR_CHANGESET_VERSION_THRESHOLD < prevTime){
-          console.warn(JSON.stringify( minorChangesets[cKey] ) + " " + prevTime)
+          if (DEBUG) console.warn(JSON.stringify( minorChangesets[cKey] ) + " " + prevTime)
           deleteMe.push(cKey)
         }
       }
@@ -315,7 +315,7 @@ this.buildAllPossibleVersionGeometries = function(args){
     _.sortBy(Object.keys(minorChangesets).map(Number)).forEach(function(c){
 
       var obj = minorChangesets[c]
-      console.warn(`Changeset: ${c} |min: ${obj.min} max: ${obj.max} | nodes: ${obj.nodes.length} | ${obj.u}, ${obj.h}`)
+      if (DEBUG) console.warn(`Changeset: ${c} |min: ${obj.min} max: ${obj.max} | nodes: ${obj.nodes.length} | ${obj.u}, ${obj.h}`)
 
       countableMinorVersionsTry2.push({
         minorVersion: minorVersionIdx,
