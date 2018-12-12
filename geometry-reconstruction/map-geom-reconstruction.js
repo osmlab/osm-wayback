@@ -1,14 +1,14 @@
 'use strict';
 
 var topojson = require("topojson");
-var WayGeometryBuilder  = require('./element-reconstruction/way-history-builder.js')
-var NodeGeometryBuilder = require('./element-reconstruction/node-history-builder.js')
+var WayGeometryBuilder      = require('./element-reconstruction/way-history-builder.js')
+var NodeGeometryBuilder     = require('./element-reconstruction/node-history-builder.js')
 var RelationGeometryBuilder = require('./element-reconstruction/relation-history-builder.js')
 
 /*
 *  Helper function to reconstruct properties between major Versions from diffs
 */
-function reconstructMajorOSMTags(baseObject,newObject){
+function reconstructMajorOSMTags(baseObject, newObject){
   if (newObject.hasOwnProperty('aA') && newObject.aA){
     Object.keys(newObject.aA).forEach(function(key){
       baseObject[key] = newObject.aA[key]
@@ -27,22 +27,21 @@ function reconstructMajorOSMTags(baseObject,newObject){
   return baseObject
 }
 
-//TODO: abstract this out to INDEX
 const CONFIG = {
   //Choose this...
   'GEOMETRY_ONLY'                             : false, //Only @validSince, @validUntil on ALL objects
 
   //OR
-  'INCLUDE_DIFFS_ON_MAJOR_VERSIONS'           : true,//DIFFS don't go on minor versions
-  'INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS' : false,
+  'INCLUDE_DIFFS_ON_MAJOR_VERSIONS'           : false,//DIFFS don't go on minor versions
+  'INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS' : true,
 
   //Optional
-  'INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS' : false,
+  'INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS' : true, //Need this if styling by attributes (such as building)
 
   //ONLY ONE OF THESE SHOULD BE SET...
   'WRITE_HISTORY_COMPLETE_OBJECT'             : false,
-  'WRITE_EVERY_GEOMETRY'                      : false,
-  'WRITE_TOPOJSON_HISTORY'                    : true
+  'WRITE_EVERY_GEOMETRY'                      : true,
+  'WRITE_TOPOJSON_HISTORY'                    : false
 }
 
 module.exports = function(line, writeData, done) {
@@ -86,6 +85,8 @@ module.exports = function(line, writeData, done) {
           'history'       : object.properties['@history'],
           'osmID'         : object.properties['@id']
         }, CONFIG)
+
+      // This will be the case for turn restrictions(?)
       }else if (object.properties['@type']==='relation'){
         geometryBuilder = new RelationGeometryBuilder({
           'history'       : object.properties['@history'],
@@ -120,11 +121,11 @@ module.exports = function(line, writeData, done) {
           majorVersionTags = reconstructMajorOSMTags(majorVersionTags, histObj)
 
           var majorVersionKey = histObj.i;
+
+          //Iterae through the historical geometries from this major version
           for(var i in geometryBuilder.historicalGeometries[majorVersionKey]){
+            //i is the minor version, for nodes, it will always be 0
 
-            //For nodes, i will always == 0
-
-            //TODO: Is this where this belongs?
             //Reconstruct Polygons from LineStrings for ways
             if (object.properties['@type']=='way'){
               if(geometryType==="Polygon" || geometryType==="MultiPolygon"){
@@ -136,7 +137,6 @@ module.exports = function(line, writeData, done) {
             var thisVersion = { //Could be minor or major
               type:"Feature",
               geometry:   geometryBuilder.historicalGeometries[majorVersionKey][i].geometry,
-              properties: geometryBuilder.historicalGeometries[majorVersionKey][i].properties
             }
 
             if(CONFIG.GEOMETRY_ONLY){
@@ -145,6 +145,11 @@ module.exports = function(line, writeData, done) {
                 '@validUntil':geometryBuilder.historicalGeometries[majorVersionKey][i].properties['@validUntil']
               }
             }else{
+              //Set the properties from geometryBuilder
+              thisVersion.properites = geometryBuilder.historicalGeometries[majorVersionKey][i].properties; //This is the shorthand form, FYI
+
+              thisVersion.properties['@id'] = object.properties['@id'] //Put the IDs back on individual versions
+
               //Set basic properties from historical version (Could be minor version...)
               thisVersion.properties['@user']      = thisVersion.properties['@user']      ||  geometryBuilder.historicalGeometries[majorVersionKey][i].h;
               delete geometryBuilder.historicalGeometries[majorVersionKey][i].h;
@@ -161,35 +166,45 @@ module.exports = function(line, writeData, done) {
               //DIFFS ONLY BELONG ON MAJOR VERSIONS
               if(i==0){
 
-                if( histObj.hasOwnProperty('aA')){
-                  if (CONFIG.INCLUDE_DIFFS_ON_MAJOR_VERSIONS){
+                if (CONFIG.INCLUDE_DIFFS_ON_MAJOR_VERSIONS){
+                  if( histObj.hasOwnProperty('aA')){
                     thisVersion.properties['aA'] = histObj.aA;
                   }
-                  delete histObj.aA;
-                }
-                if( histObj.hasOwnProperty('aM')){
-                  if (CONFIG.INCLUDE_DIFFS_ON_MAJOR_VERSIONS){
+                  if( histObj.hasOwnProperty('aM')){
                     thisVersion.properties['aM'] = histObj.aM;
                   }
-                  delete histObj.aM;
-                }
-                if( histObj.hasOwnProperty('aD')){
-                  if (CONFIG.INCLUDE_DIFFS_ON_MAJOR_VERSIONS){
+                  if( histObj.hasOwnProperty('aD')){
                     thisVersion.properties['aD'] = histObj.aD;
                   }
-                  delete histObj.aD;
                 }
+
+                // if( histObj.hasOwnProperty('aA')){
+                //   if (CONFIG.INCLUDE_DIFFS_ON_MAJOR_VERSIONS){
+                //     thisVersion.properties['aA'] = histObj.aA;
+                //   }
+                //   delete histObj.aA;
+                // }
+                // if( histObj.hasOwnProperty('aM')){
+                //   if (CONFIG.INCLUDE_DIFFS_ON_MAJOR_VERSIONS){
+                //     thisVersion.properties['aM'] = histObj.aM;
+                //   }
+                //   delete histObj.aM;
+                // }
+                // if( histObj.hasOwnProperty('aD')){
+                //   if (CONFIG.INCLUDE_DIFFS_ON_MAJOR_VERSIONS){
+                //     thisVersion.properties['aD'] = histObj.aD;
+                //   }
+                //   delete histObj.aD;
+                // }
 
                 if(CONFIG.INCLUDE_FULL_PROPERTIES_ON_MAJOR_VERSIONS){
                   thisVersion.properties = {...thisVersion.properties, ...majorVersionTags}
-                  thisVersion.properties['@id'] = object.properties['@id'] //set the ID
                 }
 
               }else{
                 //We're in minor versions now:
                 if (CONFIG.INCLUDE_FULL_PROPERTIES_ON_MINOR_VERSIONS){
                   thisVersion.properties = {...thisVersion.properties, ...majorVersionTags}
-                  thisVersion.properties['@id'] = object.properties['@id']
                 }
               }
             }
@@ -232,7 +247,8 @@ module.exports = function(line, writeData, done) {
         }
 
         if(CONFIG.WRITE_HISTORY_COMPLETE_OBJECT){
-          string = JSON.stringify(object)
+          string = JSON.stringify(newHistoryObject);
+          object.properties['@histrory'] = string;
           status.historyCompleteSingleObjectByteSize += string.length;
           writeData(string+"\n")
         }

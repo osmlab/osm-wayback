@@ -1,4 +1,13 @@
 #!/bin/bash
+
+if [ $# -lt 2 ]; 
+	then 
+	echo "Not enough arguments" 
+	echo "Usage: $ run.sh/ [INPUT HISTORY FILE] [BASE FILE NAME]"
+	exit 0 
+fi 
+
+
 clear
 echo ""
 echo "Running OSM-Wayback for history file:"
