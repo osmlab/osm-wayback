@@ -1,6 +1,6 @@
 var _ = require('lodash');
 
-// THIS IS A GEOMETRY FAKER...
+// THIS IS A GEOMETRY FAKER... currently not handling the reconstruction;
 
 const CHANGESET_THRESHOLD            = 60 * 5   // 5 minutes
 const DEBUG = false;

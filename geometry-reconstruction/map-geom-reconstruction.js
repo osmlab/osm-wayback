@@ -146,7 +146,7 @@ module.exports = function(line, writeData, done) {
               }
             }else{
               //Set the properties from geometryBuilder
-              thisVersion.properites = geometryBuilder.historicalGeometries[majorVersionKey][i].properties; //This is the shorthand form, FYI
+              thisVersion.properties = geometryBuilder.historicalGeometries[majorVersionKey][i].properties; //This is the shorthand form, FYI
 
               thisVersion.properties['@id'] = object.properties['@id'] //Put the IDs back on individual versions
 
